@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import { NewWorkspaceDialog } from "./components/Sidebar/NewWorkspaceDialog";
 import { TabBar } from "./components/Navigation/TabBar";
+import { WorkspaceView } from "./components/Chat/WorkspaceView";
 import { useRepoStore } from "./hooks/useRepos";
 import { useWorkspaceStore } from "./hooks/useWorkspaces";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -168,17 +169,15 @@ function App() {
             minSize={30}
             style={{ backgroundColor: "var(--bg-base)" }}
           >
-            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {activeWorkspaceId ? (
-                <div style={{ textAlign: "center" }}>
-                  <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
-                    Workspace: {allWorkspaces.find((w) => w.id === activeWorkspaceId)?.name}
-                  </span>
-                  <div style={{ color: "var(--text-tertiary)", fontSize: "var(--font-size-sm)", marginTop: "var(--space-2)" }}>
-                    Chat interface coming in Phase 3
-                  </div>
-                </div>
-              ) : (
+            {activeWorkspaceId ? (
+              <WorkspaceView
+                workspaceId={activeWorkspaceId}
+                workspaceName={
+                  allWorkspaces.find((w) => w.id === activeWorkspaceId)?.name ?? "Workspace"
+                }
+              />
+            ) : (
+              <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <div style={{ textAlign: "center" }}>
                   <span style={{ color: "var(--text-tertiary)", fontSize: "var(--font-size-lg)", fontWeight: 600 }}>
                     Orchestra
@@ -187,8 +186,8 @@ function App() {
                     Add a repo and create a workspace to get started
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </Panel>
 
           {!rightCollapsed && (

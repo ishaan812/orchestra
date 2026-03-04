@@ -1,7 +1,10 @@
+mod agents;
 mod commands;
 mod db;
 mod git;
+mod mcp;
 mod names;
+mod session;
 mod workspace;
 
 use std::process::Command;
@@ -46,7 +49,14 @@ pub fn run() {
             workspace::unpin_workspace,
             workspace::mark_workspace_unread,
             workspace::mark_workspace_read,
+            session::create_session,
+            session::send_message,
+            session::cancel_session,
+            session::stop_session,
+            session::get_session_messages,
+            session::get_session,
         ])
+        .manage(session::SessionManager::default())
         .setup(|app| {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

@@ -508,7 +508,7 @@ ContextMenu.test.tsx      — Right-click shows all menu options, each triggers 
 
 ### PHASE 3: Agent Execution + MCP (P3-*)
 
-- [ ] **P3-01: MCP server with rmcp**
+- [x] **P3-01: MCP server with rmcp**
   - Create `src-tauri/src/mcp.rs` using `rmcp` crate with `#[tool_box]`:
     - `GetWorkspaceDiff(workspace_id: String)`: calls `git.rs` to return current diff
     - `GetTerminalOutput(workspace_id: String, lines: Option<u32>)`: returns last N lines of terminal buffer (default 100). Terminal output buffered in a ring buffer per workspace, accessible to MCP.
@@ -532,7 +532,7 @@ ContextMenu.test.tsx      — Right-click shows all menu options, each triggers 
     - Tool responses truncated at 100k chars
     - `.mcp.json` from repo root merged into MCP config
 
-- [ ] **P3-02: Agent process spawning**
+- [x] **P3-02: Agent process spawning**
   - Create `src-tauri/src/agents/mod.rs` with `AgentAdapter` trait:
     ```rust
     trait AgentAdapter {
@@ -578,7 +578,7 @@ ContextMenu.test.tsx      — Right-click shows all menu options, each triggers 
     - Custom instructions from repo config passed to agent
     - Slash commands forwarded to process stdin
 
-- [ ] **P3-03: Session management**
+- [x] **P3-03: Session management**
   - Create Tauri commands in `commands.rs`:
     - `create_session(workspace_id, agent_type, model, task_prompt, thinking_enabled, thinking_level)`:
       1. Insert into `sessions` table with all fields
@@ -608,7 +608,7 @@ ContextMenu.test.tsx      — Right-click shows all menu options, each triggers 
     - Ring buffer prevents memory overflow with rapid messages
     - Compact sends /compact to agent, tracks compacting state
 
-- [ ] **P3-04: Conversation thread UI**
+- [x] **P3-04: Conversation thread UI**
   - Create `src/components/Chat/ConversationThread.tsx`: virtualized list (`react-window`) of messages
   - Message types with distinct rendering:
     - **User prompt**: right-aligned bubble, `--accent-bg` background, `--text-primary` text
@@ -637,7 +637,7 @@ ContextMenu.test.tsx      — Right-click shows all menu options, each triggers 
     - `j`/`k` navigates messages, focused message has highlight border
     - 1000+ messages render without lag (virtualized)
 
-- [ ] **P3-05: Composer bar**
+- [x] **P3-05: Composer bar**
   - Create `src/components/Chat/Composer.tsx`:
     - Multi-line text input with placeholder "Ask the agent to do something..."
     - `Enter` to send (default), configurable to `Cmd+Enter` via settings
