@@ -347,7 +347,7 @@ PanelLayout.test.tsx      — Panel sizes persist to localStorage, restore on mo
 
 ### PHASE 2: Workspace + Git Worktrees (P2-*)
 
-- [ ] **P2-01: Git worktree engine**
+- [x] **P2-01: Git worktree engine**
   - Create `src-tauri/src/git.rs` using git2-rs:
     - `create_worktree(repo_path: &str, branch_name: &str, worktree_path: &str) -> Result<()>`: creates worktree with new branch from HEAD
     - `remove_worktree(repo_path: &str, worktree_path: &str, prune_branch: bool) -> Result<()>`: removes worktree directory and optionally deletes branch
@@ -368,7 +368,7 @@ PanelLayout.test.tsx      — Panel sizes persist to localStorage, restore on mo
     - `remove_worktree` cleans up directory and branch
     - `is_git_busy` returns true when rebase in progress
 
-- [ ] **P2-02: Workspace CRUD Tauri commands**
+- [x] **P2-02: Workspace CRUD Tauri commands**
   - Full workspace lifecycle states: `initializing` → `ready` → `active` → `paused` → `completed` → `ready_to_merge` → `merged` → `archived` → `errored` (8 states)
   - `create_workspace(repo_id, task_prompt, agent_type, model, target_branch)`:
     1. Generate district name via `generate_workspace_name`
@@ -405,7 +405,7 @@ PanelLayout.test.tsx      — Panel sizes persist to localStorage, restore on mo
     - Pin/unpin → `pinned_at` set/null, pinned workspaces sort first
     - Fork → new worktree created, summary carried over
 
-- [ ] **P2-03: New Workspace dialog UI**
+- [x] **P2-03: New Workspace dialog UI**
   - Create `src/components/Sidebar/NewWorkspaceDialog.tsx`:
     - Modal triggered by `+ New Workspace` button or `Cmd+Shift+N`
     - **Mode selector tabs**: "New Task", "From Branch", "From PR", "From Issue"
@@ -424,7 +424,7 @@ PanelLayout.test.tsx      — Panel sizes persist to localStorage, restore on mo
     - Submit creates workspace, dialog closes, sidebar shows new workspace
     - Auto-generated district name displayed and editable
 
-- [ ] **P2-04: Workspace sidebar list**
+- [x] **P2-04: Workspace sidebar list**
   - Create `src/components/Sidebar/WorkspaceList.tsx` and `WorkspaceItem.tsx`:
   - Workspaces grouped under collapsible section headers: **Backlog**, **In Progress**, **In Review**, **Done**
   - Section headers show count badge: "In Progress (3)"
@@ -453,7 +453,7 @@ PanelLayout.test.tsx      — Panel sizes persist to localStorage, restore on mo
     - Diff stats (+/-) display with correct colors
     - Git uncommitted changes indicator visible
 
-- [ ] **P2-05: Workspace tabs + Home tab**
+- [x] **P2-05: Workspace tabs + Home tab**
   - Create `src/components/Navigation/TabBar.tsx`:
     - Fixed "Home" tab (always first, unclosable) — shows overview dashboard
     - One tab per open workspace: shows district name, truncated with tooltip

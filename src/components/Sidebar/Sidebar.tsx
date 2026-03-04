@@ -1,12 +1,7 @@
 import { RepoSelector } from "./RepoSelector";
+import { WorkspaceList } from "./WorkspaceList";
 import type { Repo } from "../../hooks/useRepos";
-
-const STATUS_SECTIONS = [
-  { key: "backlog", label: "Backlog" },
-  { key: "in-progress", label: "In Progress" },
-  { key: "in-review", label: "In Review" },
-  { key: "done", label: "Done" },
-] as const;
+import type { WorkspaceGroup } from "../../hooks/useWorkspaces";
 
 interface SidebarProps {
   repos: Repo[];
@@ -15,6 +10,9 @@ interface SidebarProps {
   onAddRepo: () => void;
   onNewWorkspace: () => void;
   onOpenSettings: () => void;
+  workspaces: WorkspaceGroup;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (id: string) => void;
 }
 
 export function Sidebar({
@@ -24,6 +22,9 @@ export function Sidebar({
   onAddRepo,
   onNewWorkspace,
   onOpenSettings,
+  workspaces,
+  activeWorkspaceId,
+  onSelectWorkspace,
 }: SidebarProps) {
   return (
     <div
@@ -35,7 +36,6 @@ export function Sidebar({
         gap: "var(--space-3)",
       }}
     >
-      {/* Repo Selector */}
       <RepoSelector
         repos={repos}
         selectedRepoId={selectedRepoId}
@@ -43,45 +43,15 @@ export function Sidebar({
         onAddRepo={onAddRepo}
       />
 
-      {/* Workspace list by status */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--space-2)",
+      <WorkspaceList
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onSelect={onSelectWorkspace}
+        onContextMenu={() => {
+          // TODO: context menu
         }}
-      >
-        {STATUS_SECTIONS.map((section) => (
-          <div key={section.key}>
-            <div
-              style={{
-                padding: "var(--space-1) 0",
-                color: "var(--text-tertiary)",
-                fontSize: "var(--font-size-xs)",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              {section.label}
-            </div>
-            <div
-              style={{
-                padding: "var(--space-2) var(--space-3)",
-                color: "var(--text-tertiary)",
-                fontSize: "var(--font-size-xs)",
-                fontStyle: "italic",
-              }}
-            >
-              No workspaces yet
-            </div>
-          </div>
-        ))}
-      </div>
+      />
 
-      {/* Bottom actions */}
       <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
         <button
           onClick={onNewWorkspace}

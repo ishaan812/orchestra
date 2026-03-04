@@ -1,6 +1,8 @@
 mod commands;
 mod db;
+mod git;
 mod names;
+mod workspace;
 
 use std::process::Command;
 use tauri::Manager;
@@ -33,6 +35,17 @@ pub fn run() {
             commands::get_repo,
             commands::remove_repo,
             commands::reorder_repos,
+            workspace::create_workspace,
+            workspace::list_workspaces,
+            workspace::get_workspace,
+            workspace::archive_workspace,
+            workspace::unarchive_workspace,
+            workspace::delete_workspace,
+            workspace::update_workspace,
+            workspace::pin_workspace,
+            workspace::unpin_workspace,
+            workspace::mark_workspace_unread,
+            workspace::mark_workspace_read,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
