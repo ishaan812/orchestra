@@ -4,6 +4,7 @@ mod db;
 mod git;
 mod mcp;
 mod names;
+mod review;
 mod session;
 mod workspace;
 
@@ -55,6 +56,13 @@ pub fn run() {
             session::stop_session,
             session::get_session_messages,
             session::get_session,
+            review::get_workspace_changes,
+            review::get_file_diff,
+            review::get_file_content,
+            review::get_full_workspace_diff,
+            review::merge_workspace,
+            review::detect_merge_conflicts,
+            review::list_workspace_branches,
         ])
         .manage(session::SessionManager::default())
         .setup(|app| {

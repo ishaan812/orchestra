@@ -4,6 +4,7 @@ import { Sidebar } from "./components/Sidebar/Sidebar";
 import { NewWorkspaceDialog } from "./components/Sidebar/NewWorkspaceDialog";
 import { TabBar } from "./components/Navigation/TabBar";
 import { WorkspaceView } from "./components/Chat/WorkspaceView";
+import { RightPanel } from "./components/Review/RightPanel";
 import { useRepoStore } from "./hooks/useRepos";
 import { useWorkspaceStore } from "./hooks/useWorkspaces";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -199,17 +200,10 @@ function App() {
                 maxSize={40}
                 style={{ backgroundColor: "var(--bg-surface)", borderLeft: "1px solid var(--border-subtle)" }}
               >
-                <div style={{ padding: "var(--space-4)", height: "100%" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>Review</span>
-                    <button
-                      onClick={() => setRightCollapsed(true)}
-                      style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: "var(--font-size-sm)", padding: "var(--space-1)" }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
+                <RightPanel
+                  workspaceId={activeWorkspaceId}
+                  onCollapse={() => setRightCollapsed(true)}
+                />
               </Panel>
             </>
           )}

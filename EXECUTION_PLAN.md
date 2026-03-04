@@ -705,7 +705,7 @@ ContextIndicator.test.tsx    — Ring shows percentage, tooltip shows token brea
 
 ### PHASE 4: Code Review + Diff (P4-*)
 
-- [ ] **P4-01: Diff computation engine**
+- [x] **P4-01: Diff computation engine**
   - Tauri commands:
     - `get_workspace_changes(workspace_id)`: returns `{ uncommitted: Vec<FileChange>, committed: Vec<FileChange>, stats: DiffStats }` where `FileChange = { path, status, insertions, deletions }`
     - `get_file_diff(workspace_id, file_path)`: returns unified diff with context lines
@@ -721,7 +721,7 @@ ContextIndicator.test.tsx    — Ring shows percentage, tooltip shows token brea
     - Diffs computed in background, don't block UI
     - 50+ file diffs paginated
 
-- [ ] **P4-02: Right panel tab container + File tree**
+- [x] **P4-02: Right panel tab container + File tree**
   - Create right panel with 5 tabs matching PRD Section 6.1: **Changes**, **All Files**, **Checks**, **Notes**, **Terminal**
   - Tab container with `--bg-surface` background, `--border-subtle` bottom border
   - Active tab: `--accent-primary` bottom border indicator
@@ -745,7 +745,7 @@ ContextIndicator.test.tsx    — Ring shows percentage, tooltip shows token brea
     - Mark as viewed works with Ctrl+V, auto-advances
     - All Files tab shows complete workspace file tree
 
-- [ ] **P4-03: Diff viewer**
+- [x] **P4-03: Diff viewer**
   - Create `src/components/Review/DiffViewer.tsx` using Monaco Editor diff mode:
     - Side-by-side (default) and inline modes, toggle button
     - Syntax highlighting based on file extension
@@ -766,7 +766,7 @@ ContextIndicator.test.tsx    — Ring shows percentage, tooltip shows token brea
     - Markdown files can toggle to rendered preview
     - Turn-by-turn dropdown shows diffs per agent turn
 
-- [ ] **P4-04: Merge flow**
+- [x] **P4-04: Merge flow**
   - Create `src/components/Review/MergeButton.tsx`:
     - Merge button: sage green `--success` background, disabled when blocked
     - Pre-merge checks display:
@@ -790,7 +790,7 @@ ContextIndicator.test.tsx    — Ring shows percentage, tooltip shows token brea
     - "Continue on new branch" creates forked workspace
     - "Update memory" spawns brief agent session
 
-- [ ] **P4-05: PR creation**
+- [x] **P4-05: PR creation**
   - Create PR flow in right panel Checks tab:
     - "Create PR" button (visible when no PR exists)
     - "Create Draft PR" option
