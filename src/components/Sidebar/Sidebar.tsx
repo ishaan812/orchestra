@@ -13,6 +13,7 @@ interface SidebarProps {
   workspaces: WorkspaceGroup;
   activeWorkspaceId: string | null;
   onSelectWorkspace: (id: string) => void;
+  unreadCount?: number;
 }
 
 export function Sidebar({
@@ -25,6 +26,7 @@ export function Sidebar({
   workspaces,
   activeWorkspaceId,
   onSelectWorkspace,
+  unreadCount,
 }: SidebarProps) {
   return (
     <div
@@ -43,14 +45,28 @@ export function Sidebar({
         onAddRepo={onAddRepo}
       />
 
-      <WorkspaceList
-        workspaces={workspaces}
-        activeWorkspaceId={activeWorkspaceId}
-        onSelect={onSelectWorkspace}
-        onContextMenu={() => {
-          // TODO: context menu
-        }}
-      />
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {unreadCount != null && unreadCount > 0 && (
+          <div
+            style={{
+              padding: "var(--space-1) var(--space-2)",
+              fontSize: "var(--font-size-xs)",
+              color: "var(--accent-primary)",
+              fontWeight: 600,
+            }}
+          >
+            {unreadCount} unread
+          </div>
+        )}
+        <WorkspaceList
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelect={onSelectWorkspace}
+          onContextMenu={() => {
+            // TODO: context menu
+          }}
+        />
+      </div>
 
       <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
         <button

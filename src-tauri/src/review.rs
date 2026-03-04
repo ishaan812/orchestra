@@ -154,6 +154,31 @@ pub async fn list_workspace_branches(
     git::list_branches(&repo_path)
 }
 
+#[tauri::command]
+pub async fn list_workspace_files(
+    workspace_id: String,
+    db: State<'_, DbPool>,
+) -> Result<Vec<String>, String> {
+    let (worktree_path, _) = get_workspace_paths(&workspace_id, &db).await?;
+
+    let output = std::process::Command::new("git")
+        .args(["ls-files", "--cached", "--others", "--exclude-standard"])
+        .current_dir(&worktree_path)
+        .output()
+        .map_err(|e| format!("Failed to run git ls-files: {e}"))?;
+
+    if !output.status.success() {
+        return Err("git ls-files failed".to_string());
+    }
+
+    let files: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(String::from)
+        .collect();
+
+    Ok(files)
+}
+
 // --- helpers ---
 
 async fn get_workspace_paths(

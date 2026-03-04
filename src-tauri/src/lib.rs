@@ -75,6 +75,7 @@ pub fn run() {
             review::merge_workspace,
             review::detect_merge_conflicts,
             review::list_workspace_branches,
+            review::list_workspace_files,
             checkpoint::save_checkpoint,
             checkpoint::restore_checkpoint,
             checkpoint::diff_checkpoints,
