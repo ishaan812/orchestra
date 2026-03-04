@@ -9,6 +9,7 @@ import { CommandPalette } from "./components/Navigation/CommandPalette";
 import { FilePicker } from "./components/Navigation/FilePicker";
 import { WorkspaceSearch } from "./components/Navigation/WorkspaceSearch";
 import { ShortcutsHelp } from "./components/Navigation/ShortcutsHelp";
+import { SettingsPage } from "./components/Settings/SettingsPage";
 import { useRepoStore } from "./hooks/useRepos";
 import { useWorkspaceStore } from "./hooks/useWorkspaces";
 import { useKeyboard, type ShortcutDef } from "./hooks/useKeyboard";
@@ -52,6 +53,7 @@ function App() {
   const [showFilePicker, setShowFilePicker] = useState(false);
   const [showWorkspaceSearch, setShowWorkspaceSearch] = useState(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     fetchRepos();
@@ -215,6 +217,13 @@ function App() {
         action: toggleZenMode,
       },
       {
+        key: ",",
+        meta: true,
+        description: "Settings",
+        category: "View",
+        action: () => setShowSettings(true),
+      },
+      {
         key: "u",
         meta: true,
         shift: true,
@@ -279,7 +288,7 @@ function App() {
                   onSelectRepo={setSelectedRepoId}
                   onAddRepo={handleAddRepo}
                   onNewWorkspace={() => setShowNewWorkspace(true)}
-                  onOpenSettings={() => {}}
+                  onOpenSettings={() => setShowSettings(true)}
                   workspaces={workspaces}
                   activeWorkspaceId={activeWorkspaceId}
                   onSelectWorkspace={setActiveWorkspaceId}
@@ -301,7 +310,12 @@ function App() {
             minSize={30}
             style={{ backgroundColor: "var(--bg-base)" }}
           >
-            {activeWorkspaceId ? (
+            {showSettings ? (
+              <SettingsPage
+                onClose={() => setShowSettings(false)}
+                selectedRepoId={selectedRepoId}
+              />
+            ) : activeWorkspaceId ? (
               <WorkspaceView
                 workspaceId={activeWorkspaceId}
                 workspaceName={

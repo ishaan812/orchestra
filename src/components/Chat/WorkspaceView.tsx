@@ -184,6 +184,29 @@ export function WorkspaceView({ workspaceId, workspaceName }: WorkspaceViewProps
     }
   }, []);
 
+  const handleSlashCommand = useCallback(
+    async (command: string) => {
+      const cmd = command.toLowerCase().trim();
+      if (cmd === "/clear") {
+        if (activeSessionId) {
+          await sendMessage(activeSessionId, "/clear");
+        }
+      } else if (cmd === "/compact") {
+        if (activeSessionId) {
+          await sendMessage(activeSessionId, "/compact");
+        }
+      } else if (cmd === "/restart") {
+        handleNewChat();
+      } else {
+        // Forward unknown slash commands to agent
+        if (activeSessionId) {
+          await sendMessage(activeSessionId, command);
+        }
+      }
+    },
+    [activeSessionId, sendMessage, handleNewChat]
+  );
+
   // Cmd+T shortcut for new chat
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -303,6 +326,7 @@ export function WorkspaceView({ workspaceId, workspaceName }: WorkspaceViewProps
         }
         isPlanMode={isPlanMode}
         onPlanModeToggle={handlePlanModeToggle}
+        onSlashCommand={handleSlashCommand}
       />
     </div>
   );

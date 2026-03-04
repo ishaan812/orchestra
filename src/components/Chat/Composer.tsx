@@ -10,6 +10,7 @@ interface ComposerProps {
   contextPercent: number;
   isPlanMode?: boolean;
   onPlanModeToggle?: () => void;
+  onSlashCommand?: (command: string) => void;
 }
 
 const DRAFT_PREFIX = "orchestra-draft-";
@@ -29,6 +30,7 @@ export function Composer({
   contextPercent,
   isPlanMode,
   onPlanModeToggle,
+  onSlashCommand,
 }: ComposerProps) {
   const [text, setText] = useState(() => {
     try {
@@ -69,6 +71,14 @@ export function Composer({
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
+
+    // Handle slash commands
+    if (trimmed.startsWith("/") && onSlashCommand) {
+      onSlashCommand(trimmed);
+      setText("");
+      return;
+    }
+
     onSend(trimmed);
     setText("");
     try {
@@ -76,7 +86,7 @@ export function Composer({
     } catch {
       // ignore
     }
-  }, [text, disabled, onSend, workspaceId]);
+  }, [text, disabled, onSend, onSlashCommand, workspaceId]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

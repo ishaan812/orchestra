@@ -474,6 +474,32 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<()
     Ok(())
 }
 
+#[tauri::command]
+pub async fn fork_workspace(
+    workspace_id: String,
+    db: State<'_, DbPool>,
+) -> Result<WorkspaceInfo, String> {
+    let original: WorkspaceRow = sqlx::query_as(
+        "SELECT * FROM workspaces WHERE id = ?",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&db.0)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let task_prompt = original.task_prompt.map(|t| format!("(Fork) {t}"));
+
+    create_workspace(
+        original.repo_id,
+        task_prompt,
+        original.agent_type,
+        original.model,
+        original.intended_target_branch,
+        db,
+    )
+    .await
+}
+
 #[derive(sqlx::FromRow)]
 struct RepoRow {
     #[allow(dead_code)]

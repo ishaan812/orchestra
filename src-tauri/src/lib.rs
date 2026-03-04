@@ -14,6 +14,8 @@ mod notes;
 mod review;
 mod scripts;
 mod session;
+mod settings;
+mod spotlight;
 mod terminal;
 mod todos;
 mod workspace;
@@ -60,6 +62,9 @@ pub fn run() {
             workspace::unpin_workspace,
             workspace::mark_workspace_unread,
             workspace::mark_workspace_read,
+            workspace::fork_workspace,
+            spotlight::activate_spotlight,
+            spotlight::deactivate_spotlight,
             session::create_session,
             session::send_message,
             session::cancel_session,
@@ -102,6 +107,12 @@ pub fn run() {
             context::archive_context,
             context::unarchive_context,
             context::save_plan,
+            settings::get_settings,
+            settings::get_setting,
+            settings::set_setting,
+            settings::detect_installed_ides,
+            settings::open_in_ide,
+            settings::export_workspace,
             integrations::github::get_pr_status,
             integrations::github::create_pr,
             integrations::github::update_pr,
