@@ -1064,7 +1064,7 @@ EnvSettings.test.tsx        — Key-value editor: add, edit, remove vars, save p
 
 ### PHASE 7: Notes, Todos, Context (P7-*)
 
-- [ ] **P7-01: Notes editor**
+- [x] **P7-01: Notes editor**
   - Create `src/components/Notes/NotesEditor.tsx` in right panel "Notes" tab:
     - Rich markdown editor using tiptap with WYSIWYG toolbar
     - Bold, italic, headings, lists, code blocks, links
@@ -1078,7 +1078,7 @@ EnvSettings.test.tsx        — Key-value editor: add, edit, remove vars, save p
     - `.context/notes.md` file updated on disk
     - Agent system prompt includes notes content
 
-- [ ] **P7-02: Todos with merge blocking**
+- [x] **P7-02: Todos with merge blocking**
   - Todo list in right panel Checks tab:
     - Add todo with Enter key in input field
     - Toggle complete/incomplete checkbox
@@ -1099,7 +1099,7 @@ EnvSettings.test.tsx        — Key-value editor: add, edit, remove vars, save p
     - Todos persist in `.context/todos.md`
     - Merge button tooltip shows reason when disabled
 
-- [ ] **P7-03: Context directory management**
+- [x] **P7-03: Context directory management**
   - `.context/` folder per workspace: `notes.md`, `todos.md`, `attachments/`, `plans/`
   - Attachments: images, pasted text, files — stored here, referenced in messages via `attachments` table
   - When archiving workspace: `.context/` moved to `~/open-conductor/archived-contexts/<repo>/<workspace>/`
@@ -1113,7 +1113,7 @@ EnvSettings.test.tsx        — Key-value editor: add, edit, remove vars, save p
     - Unarchive restores `.context/`
     - Plan outputs saved to `.context/plans/`
 
-- [ ] **P7-04: Token/cost tracking**
+- [x] **P7-04: Token/cost tracking**
   - Parse cost metadata from agent output (`full_message` JSON — look for `usage`, `cost` fields)
   - Per-message cost: shown in response metadata tooltip (hover over message)
   - Per-session total: shown in chat header area

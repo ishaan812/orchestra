@@ -4,6 +4,8 @@ import { DiffViewer } from "./DiffViewer";
 import { MergeButton } from "./MergeButton";
 import { PRCreation } from "./PRCreation";
 import { TerminalPanel } from "../Terminal/Terminal";
+import { NotesEditor } from "../Notes/NotesEditor";
+import { TodoList } from "./TodoList";
 
 interface RightPanelProps {
   workspaceId: string | null;
@@ -115,6 +117,9 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
           <div style={{ overflow: "auto" }}>
             <MergeButton workspaceId={workspaceId} />
             <div style={{ borderTop: "1px solid var(--border-subtle)" }}>
+              <TodoList workspaceId={workspaceId} />
+            </div>
+            <div style={{ borderTop: "1px solid var(--border-subtle)" }}>
               <PRCreation
                 workspaceId={workspaceId}
                 taskPrompt={null}
@@ -126,8 +131,11 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
         {activeTab === "checks" && !workspaceId && (
           <PlaceholderTab label="Checks" description="Select a workspace" />
         )}
-        {activeTab === "notes" && (
-          <PlaceholderTab label="Notes" description="Workspace notes" />
+        {activeTab === "notes" && workspaceId && (
+          <NotesEditor workspaceId={workspaceId} />
+        )}
+        {activeTab === "notes" && !workspaceId && (
+          <PlaceholderTab label="Notes" description="Select a workspace" />
         )}
         {activeTab === "terminal" && workspaceId && (
           <TerminalPanel workspaceId={workspaceId} />

@@ -2,16 +2,19 @@
 mod agents;
 mod checkpoint;
 mod commands;
+mod context;
 mod db;
 mod env_vars;
 mod git;
 #[allow(dead_code)]
 mod mcp;
 mod names;
+mod notes;
 mod review;
 mod scripts;
 mod session;
 mod terminal;
+mod todos;
 mod workspace;
 
 use std::process::Command;
@@ -87,6 +90,16 @@ pub fn run() {
             env_vars::set_env_var,
             env_vars::get_env_vars,
             env_vars::delete_env_var,
+            notes::get_notes,
+            notes::save_notes,
+            todos::get_todos,
+            todos::save_todos,
+            todos::check_blocking_todos,
+            context::init_context_dir,
+            context::get_context_info,
+            context::archive_context,
+            context::unarchive_context,
+            context::save_plan,
         ])
         .manage(session::SessionManager::default())
         .manage(terminal::TerminalManager::default())
