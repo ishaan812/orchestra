@@ -839,7 +839,7 @@ FileExplorer.test.tsx      — Full file tree renders, respects .gitignore
 
 ### PHASE 5: Multi-Chat + Plan Mode + Tasks (P5-*)
 
-- [ ] **P5-01: Multiple chats per workspace**
+- [x] **P5-01: Multiple chats per workspace**
   - `Cmd+T` creates new chat tab within a workspace
   - Create `src/components/Chat/ChatTabs.tsx`: sub-tab bar below workspace tab
   - Each chat is a separate `session` record in SQLite with own `agent_type`, `model`
@@ -854,7 +854,7 @@ FileExplorer.test.tsx      — Full file tree renders, respects .gitignore
     - Double-click renames tab, persists to DB
     - New chat includes summary of previous chats in system context
 
-- [ ] **P5-02: Plan mode**
+- [x] **P5-02: Plan mode**
   - Plan mode toggle in composer (button or slash command `/plan`)
   - When active: session `permission_mode='plan'`
   - Agent creates structured plan before coding (triggered by `EnterPlanMode` MCP tool)
@@ -874,7 +874,7 @@ FileExplorer.test.tsx      — Full file tree renders, respects .gitignore
     - "Send to New Chat" creates new chat with plan content
     - "Send to Workspace" creates new workspace with plan
 
-- [ ] **P5-03: Chat checkpoints**
+- [x] **P5-03: Chat checkpoints**
   - Checkpoint system using git refs under `refs/orchestra-checkpoints/`:
     - `session-<uuid>-turn-<uuid>-end`: checkpoint at end of each AI turn
     - `orchestra-archive-<workspace-uuid>`: snapshot when archiving
@@ -894,7 +894,7 @@ FileExplorer.test.tsx      — Full file tree renders, respects .gitignore
     - Checkpoint skipped during rebase/merge in progress
     - `diff_checkpoints` returns accurate diff between two points
 
-- [ ] **P5-04: Chat search**
+- [x] **P5-04: Chat search**
   - `Cmd+F` opens search bar overlay at top of conversation thread
   - Live search highlights matching text in all visible messages
   - Match count display: "3 of 12 matches"
@@ -907,7 +907,7 @@ FileExplorer.test.tsx      — Full file tree renders, respects .gitignore
     - Arrow keys navigate between matches with auto-scroll
     - Escape closes search bar
 
-- [ ] **P5-05: Agent question handling**
+- [x] **P5-05: Agent question handling**
   - When agent calls `AskUserQuestion` MCP tool:
   - Create `src/components/Chat/AgentQuestion.tsx`:
     - Question card in conversation thread with question text
@@ -923,7 +923,7 @@ FileExplorer.test.tsx      — Full file tree renders, respects .gitignore
     - After answering, card shows selected answer (read-only)
     - Timeout after 5 minutes returns error to agent
 
-- [ ] **P5-06: Tasks feature**
+- [x] **P5-06: Tasks feature**
   - Agent can organize work into structured tasks via `TaskCreate`, `TaskUpdate`, `TaskList` tool calls
   - Create `src/components/Chat/TaskView.tsx`:
     - Task list panel showing all tasks for current session
@@ -937,7 +937,7 @@ FileExplorer.test.tsx      — Full file tree renders, respects .gitignore
     - Completed tasks show checkmark
     - Task details expandable/collapsible
 
-- [ ] **P5-07: Table of contents + Chat summaries**
+- [x] **P5-07: Table of contents + Chat summaries**
   - Create `src/components/Chat/TableOfContents.tsx`:
     - Sidebar overlay (triggered by button in chat header) showing conversation structure
     - Entries for: user messages (abbreviated), key agent actions, plan blocks, checkpoints

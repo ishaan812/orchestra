@@ -500,6 +500,7 @@ pub fn detect_conflicts(worktree_path: &str, target_branch: &str) -> Result<Vec<
     Ok(conflicts)
 }
 
+#[allow(dead_code)] // Used in P5-03 checkpoint system
 pub fn is_git_busy(worktree_path: &str) -> bool {
     let git_dir = Path::new(worktree_path).join(".git");
 

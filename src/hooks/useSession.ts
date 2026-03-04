@@ -48,6 +48,7 @@ interface SessionStore {
   sessions: Record<string, SessionInfo>;
   messages: Record<string, MessageInfo[]>;
   agentStatus: Record<string, string>;
+  workspaceSessions: Record<string, string[]>; // workspace_id -> session_id[]
   loading: boolean;
 
   createSession: (params: {
@@ -63,6 +64,9 @@ interface SessionStore {
   stopSession: (sessionId: string) => Promise<void>;
   loadMessages: (sessionId: string) => Promise<void>;
   getSession: (sessionId: string) => Promise<SessionInfo>;
+  listWorkspaceSessions: (workspaceId: string) => Promise<SessionInfo[]>;
+  updateSession: (sessionId: string, title?: string, permissionMode?: string) => Promise<void>;
+  hideSession: (sessionId: string) => Promise<void>;
   addMessage: (sessionId: string, msg: MessageInfo) => void;
   setAgentStatus: (sessionId: string, status: string) => void;
 }
@@ -71,17 +75,25 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   sessions: {},
   messages: {},
   agentStatus: {},
+  workspaceSessions: {},
   loading: false,
 
   createSession: async (params) => {
     const session = await invoke<SessionInfo>("create_session", {
       params,
     });
-    set((state) => ({
-      sessions: { ...state.sessions, [session.id]: session },
-      messages: { ...state.messages, [session.id]: [] },
-      agentStatus: { ...state.agentStatus, [session.id]: "running" },
-    }));
+    set((state) => {
+      const wsIds = state.workspaceSessions[params.workspace_id] ?? [];
+      return {
+        sessions: { ...state.sessions, [session.id]: session },
+        messages: { ...state.messages, [session.id]: [] },
+        agentStatus: { ...state.agentStatus, [session.id]: "running" },
+        workspaceSessions: {
+          ...state.workspaceSessions,
+          [params.workspace_id]: [...wsIds, session.id],
+        },
+      };
+    });
     return session;
   },
 
@@ -125,6 +137,58 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       sessions: { ...state.sessions, [session.id]: session },
     }));
     return session;
+  },
+
+  listWorkspaceSessions: async (workspaceId) => {
+    const list = await invoke<SessionInfo[]>("list_workspace_sessions", {
+      workspaceId,
+    });
+    const sessionsMap: Record<string, SessionInfo> = {};
+    const ids: string[] = [];
+    for (const s of list) {
+      sessionsMap[s.id] = s;
+      ids.push(s.id);
+    }
+    set((state) => ({
+      sessions: { ...state.sessions, ...sessionsMap },
+      workspaceSessions: { ...state.workspaceSessions, [workspaceId]: ids },
+    }));
+    return list;
+  },
+
+  updateSession: async (sessionId, title, permissionMode) => {
+    await invoke("update_session", {
+      sessionId,
+      title: title ?? null,
+      permissionMode: permissionMode ?? null,
+    });
+    set((state) => {
+      const existing = state.sessions[sessionId];
+      if (!existing) return state;
+      return {
+        sessions: {
+          ...state.sessions,
+          [sessionId]: {
+            ...existing,
+            ...(title !== undefined && { title }),
+            ...(permissionMode !== undefined && { permission_mode: permissionMode }),
+          },
+        },
+      };
+    });
+  },
+
+  hideSession: async (sessionId) => {
+    await invoke("hide_session", { sessionId });
+    set((state) => {
+      const { [sessionId]: _, ...rest } = state.sessions;
+      // Remove from workspace sessions lists
+      const workspaceSessions = { ...state.workspaceSessions };
+      for (const [wsId, ids] of Object.entries(workspaceSessions)) {
+        workspaceSessions[wsId] = ids.filter((id) => id !== sessionId);
+      }
+      return { sessions: rest, workspaceSessions };
+    });
   },
 
   addMessage: (sessionId, msg) => {

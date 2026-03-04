@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { PlanToggle } from "./PlanMode";
 
 interface ComposerProps {
   onSend: (content: string) => void;
@@ -7,6 +8,8 @@ interface ComposerProps {
   model: string;
   onModelChange: (model: string) => void;
   contextPercent: number;
+  isPlanMode?: boolean;
+  onPlanModeToggle?: () => void;
 }
 
 const DRAFT_PREFIX = "orchestra-draft-";
@@ -24,6 +27,8 @@ export function Composer({
   model,
   onModelChange,
   contextPercent,
+  isPlanMode,
+  onPlanModeToggle,
 }: ComposerProps) {
   const [text, setText] = useState(() => {
     try {
@@ -159,6 +164,10 @@ export function Composer({
             </div>
           )}
         </div>
+
+        {onPlanModeToggle && (
+          <PlanToggle isPlanMode={isPlanMode ?? false} onToggle={onPlanModeToggle} />
+        )}
 
         {contextPercent > 0 && (
           <ContextRing percent={contextPercent} />

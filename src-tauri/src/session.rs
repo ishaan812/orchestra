@@ -272,6 +272,64 @@ pub async fn get_session(
     Ok(SessionInfo::from(row))
 }
 
+#[tauri::command]
+pub async fn list_workspace_sessions(
+    workspace_id: String,
+    db: State<'_, DbPool>,
+) -> Result<Vec<SessionInfo>, String> {
+    let rows = sqlx::query_as::<_, SessionRow>(
+        "SELECT id, workspace_id, title, agent_type, model, permission_mode,
+         thinking_enabled, context_used_percent, unread_count, is_compacting, created_at
+         FROM sessions WHERE workspace_id = ? AND is_hidden = 0
+         ORDER BY created_at ASC",
+    )
+    .bind(&workspace_id)
+    .fetch_all(&db.0)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(rows.into_iter().map(SessionInfo::from).collect())
+}
+
+#[tauri::command]
+pub async fn update_session(
+    session_id: String,
+    title: Option<String>,
+    permission_mode: Option<String>,
+    db: State<'_, DbPool>,
+) -> Result<(), String> {
+    if let Some(t) = &title {
+        sqlx::query("UPDATE sessions SET title = ? WHERE id = ?")
+            .bind(t)
+            .bind(&session_id)
+            .execute(&db.0)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    if let Some(pm) = &permission_mode {
+        sqlx::query("UPDATE sessions SET permission_mode = ? WHERE id = ?")
+            .bind(pm)
+            .bind(&session_id)
+            .execute(&db.0)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn hide_session(
+    session_id: String,
+    db: State<'_, DbPool>,
+) -> Result<(), String> {
+    sqlx::query("UPDATE sessions SET is_hidden = 1 WHERE id = ?")
+        .bind(&session_id)
+        .execute(&db.0)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 async fn stream_agent_output(
     session_id: String,
     stdout: std::process::ChildStdout,

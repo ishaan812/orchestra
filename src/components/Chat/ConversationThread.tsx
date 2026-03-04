@@ -1,17 +1,37 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageBubble } from "./MessageBubble";
+import { PlanView } from "./PlanMode";
+import { ChatSearch } from "./ChatSearch";
 import type { MessageInfo } from "../../hooks/useSession";
 
 interface ConversationThreadProps {
   messages: MessageInfo[];
   agentStatus: string;
+  isPlanMode?: boolean;
+  onPlanApprove?: () => void;
+  onPlanApproveWithFeedback?: (feedback: string) => void;
+  onPlanReject?: () => void;
+  onPlanSendToNewChat?: (content: string) => void;
+  onPlanSendToWorkspace?: (content: string) => void;
+  onRevertToMessage?: (messageId: string, turnId: string) => void;
 }
 
-export function ConversationThread({ messages, agentStatus }: ConversationThreadProps) {
+export function ConversationThread({
+  messages,
+  agentStatus,
+  isPlanMode,
+  onPlanApprove,
+  onPlanApproveWithFeedback,
+  onPlanReject,
+  onPlanSendToNewChat,
+  onPlanSendToWorkspace,
+  onRevertToMessage,
+}: ConversationThreadProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showJumpButton, setShowJumpButton] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -27,6 +47,18 @@ export function ConversationThread({ messages, agentStatus }: ConversationThread
       setShowJumpButton(true);
     }
   }, [messages.length, isAtBottom]);
+
+  // Cmd+F to open search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey && e.key === "f") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
@@ -66,6 +98,11 @@ export function ConversationThread({ messages, agentStatus }: ConversationThread
 
   return (
     <div style={{ height: "100%", position: "relative" }}>
+      <ChatSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        containerRef={containerRef}
+      />
       <div
         ref={containerRef}
         onScroll={handleScroll}
@@ -77,8 +114,27 @@ export function ConversationThread({ messages, agentStatus }: ConversationThread
         }}
       >
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble key={msg.id} message={msg} onRevert={onRevertToMessage} />
         ))}
+
+        {isPlanMode && agentStatus !== "running" && messages.length > 0 && (() => {
+          const lastAssistant = [...messages].reverse().find(
+            (m) => m.role === "assistant" || m.role === "result"
+          );
+          if (lastAssistant && onPlanApprove) {
+            return (
+              <PlanView
+                planContent={lastAssistant.content}
+                onApprove={onPlanApprove}
+                onApproveWithFeedback={onPlanApproveWithFeedback ?? (() => {})}
+                onReject={onPlanReject ?? (() => {})}
+                onSendToNewChat={onPlanSendToNewChat ?? (() => {})}
+                onSendToWorkspace={onPlanSendToWorkspace ?? (() => {})}
+              />
+            );
+          }
+          return null;
+        })()}
 
         {agentStatus === "running" && <StatusLine />}
 

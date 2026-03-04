@@ -1,7 +1,10 @@
+#[allow(dead_code)]
 mod agents;
+mod checkpoint;
 mod commands;
 mod db;
 mod git;
+#[allow(dead_code)]
 mod mcp;
 mod names;
 mod review;
@@ -56,6 +59,9 @@ pub fn run() {
             session::stop_session,
             session::get_session_messages,
             session::get_session,
+            session::list_workspace_sessions,
+            session::update_session,
+            session::hide_session,
             review::get_workspace_changes,
             review::get_file_diff,
             review::get_file_content,
@@ -63,6 +69,9 @@ pub fn run() {
             review::merge_workspace,
             review::detect_merge_conflicts,
             review::list_workspace_branches,
+            checkpoint::save_checkpoint,
+            checkpoint::restore_checkpoint,
+            checkpoint::diff_checkpoints,
         ])
         .manage(session::SessionManager::default())
         .setup(|app| {

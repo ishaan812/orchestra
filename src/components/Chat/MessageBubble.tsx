@@ -5,9 +5,10 @@ import type { MessageInfo } from "../../hooks/useSession";
 
 interface MessageBubbleProps {
   message: MessageInfo;
+  onRevert?: (messageId: string, turnId: string) => void;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onRevert }: MessageBubbleProps) {
   const [showMeta, setShowMeta] = useState(false);
 
   const isUser = message.role === "user";
@@ -37,6 +38,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
   return (
     <div
+      data-message-id={message.id}
       style={{
         display: "flex",
         justifyContent: isUser ? "flex-end" : "flex-start",
@@ -145,13 +147,35 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               whiteSpace: "nowrap",
               boxShadow: "var(--shadow-sm)",
               zIndex: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-2)",
             }}
           >
             {message.model && <span>{message.model}</span>}
             {message.sent_at && (
-              <span style={{ marginLeft: "var(--space-2)" }}>
+              <span>
                 {new Date(message.sent_at).toLocaleTimeString()}
               </span>
+            )}
+            {onRevert && message.turn_id && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRevert(message.id, message.turn_id!);
+                }}
+                style={{
+                  background: "none",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--text-tertiary)",
+                  fontSize: "var(--font-size-xs)",
+                  cursor: "pointer",
+                  padding: "0 var(--space-1)",
+                }}
+              >
+                Revert to here
+              </button>
             )}
           </div>
         )}
