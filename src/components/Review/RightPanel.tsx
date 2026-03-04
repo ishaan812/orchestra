@@ -3,6 +3,7 @@ import { FileTree } from "./FileTree";
 import { DiffViewer } from "./DiffViewer";
 import { MergeButton } from "./MergeButton";
 import { PRCreation } from "./PRCreation";
+import { TerminalPanel } from "../Terminal/Terminal";
 
 interface RightPanelProps {
   workspaceId: string | null;
@@ -128,8 +129,11 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
         {activeTab === "notes" && (
           <PlaceholderTab label="Notes" description="Workspace notes" />
         )}
-        {activeTab === "terminal" && (
-          <PlaceholderTab label="Terminal" description="Terminal output" />
+        {activeTab === "terminal" && workspaceId && (
+          <TerminalPanel workspaceId={workspaceId} />
+        )}
+        {activeTab === "terminal" && !workspaceId && (
+          <PlaceholderTab label="Terminal" description="Select a workspace" />
         )}
         {activeTab === "changes" && !workspaceId && (
           <PlaceholderTab label="Changes" description="Select a workspace to view changes" />

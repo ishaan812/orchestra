@@ -3,12 +3,15 @@ mod agents;
 mod checkpoint;
 mod commands;
 mod db;
+mod env_vars;
 mod git;
 #[allow(dead_code)]
 mod mcp;
 mod names;
 mod review;
+mod scripts;
 mod session;
+mod terminal;
 mod workspace;
 
 use std::process::Command;
@@ -72,8 +75,21 @@ pub fn run() {
             checkpoint::save_checkpoint,
             checkpoint::restore_checkpoint,
             checkpoint::diff_checkpoints,
+            terminal::spawn_terminal,
+            terminal::get_terminal_output,
+            terminal::push_terminal_output,
+            terminal::detect_localhost_urls,
+            terminal::get_terminal_info,
+            scripts::get_conductor_config,
+            scripts::run_setup_scripts,
+            scripts::run_workspace_script,
+            scripts::get_setup_log,
+            env_vars::set_env_var,
+            env_vars::get_env_vars,
+            env_vars::delete_env_var,
         ])
         .manage(session::SessionManager::default())
+        .manage(terminal::TerminalManager::default())
         .setup(|app| {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

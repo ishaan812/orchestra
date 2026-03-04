@@ -31,3 +31,5 @@ git2 = "0.19"
 libc = "0.2"
 rmcp = { version = "1", features = ["server", "macros", "transport-io"] }
 schemars = "1"
+ring = "0.17"
+base64 = "0.22"

@@ -982,7 +982,7 @@ TableOfContents.test.tsx     — Opens, entries listed, click scrolls, hover pre
 
 ### PHASE 6: Terminal + Scripts (P6-*)
 
-- [ ] **P6-01: Integrated terminal**
+- [x] **P6-01: Integrated terminal**
   - Create `src/components/Terminal/Terminal.tsx` using xterm.js + WebGL addon:
     - Renders in right panel "Terminal" tab
     - Spawns user's default shell (`$SHELL` env var) in worktree directory
@@ -1005,7 +1005,7 @@ TableOfContents.test.tsx     — Opens, entries listed, click scrolls, hover pre
     - Terminal output accessible to MCP tool (last 100 lines)
     - `Cmd+Shift+O` detects and offers to open localhost URLs
 
-- [ ] **P6-02: Setup and run scripts**
+- [x] **P6-02: Setup and run scripts**
   - Parse `conductor.json` from repo root for `setup`, `run`, `scripts` fields
   - On workspace creation: run setup script(s) in worktree, log output to `setup_log_path`
   - `Cmd+R` executes run script (e.g., `npm run dev`)
@@ -1023,7 +1023,7 @@ TableOfContents.test.tsx     — Opens, entries listed, click scrolls, hover pre
     - Script logs viewable via button
     - Settings page shows script editor for repo
 
-- [ ] **P6-03: Environment variables**
+- [x] **P6-03: Environment variables**
   - Create `src/components/Settings/EnvSettings.tsx`: key-value editor per repo
   - Env vars injected into: agent process environment, terminal shell environment
   - Stored in `conductor_config` JSON on repos table
