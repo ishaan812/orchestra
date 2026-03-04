@@ -1,0 +1,30 @@
+[package]
+name = "orchestra"
+version = "0.1.0"
+description = "Orchestrate AI coding agents in parallel git worktrees"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "orchestra_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+rand = "0.8"
+dirs = "6"
+git2 = "0.19"
