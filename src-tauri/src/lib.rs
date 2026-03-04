@@ -6,6 +6,7 @@ mod context;
 mod db;
 mod env_vars;
 mod git;
+mod integrations;
 #[allow(dead_code)]
 mod mcp;
 mod names;
@@ -101,6 +102,17 @@ pub fn run() {
             context::archive_context,
             context::unarchive_context,
             context::save_plan,
+            integrations::github::get_pr_status,
+            integrations::github::create_pr,
+            integrations::github::update_pr,
+            integrations::github::get_pr_checks,
+            integrations::github::get_workflow_runs,
+            integrations::github::rerun_workflow,
+            integrations::github::get_pr_comments,
+            integrations::github::detect_github_enterprise,
+            integrations::linear::search_linear_issues,
+            integrations::linear::link_issue_to_workspace,
+            integrations::linear::get_linked_issue,
         ])
         .manage(session::SessionManager::default())
         .manage(terminal::TerminalManager::default())

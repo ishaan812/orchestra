@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { FileTree } from "./FileTree";
 import { DiffViewer } from "./DiffViewer";
-import { MergeButton } from "./MergeButton";
-import { PRCreation } from "./PRCreation";
 import { TerminalPanel } from "../Terminal/Terminal";
 import { NotesEditor } from "../Notes/NotesEditor";
-import { TodoList } from "./TodoList";
+import { ChecksTab } from "../Checks/ChecksTab";
+import { ReviewButton } from "../Checks/ReviewButton";
 
 interface RightPanelProps {
   workspaceId: string | null;
@@ -65,6 +64,7 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
           </button>
         ))}
         <div style={{ flex: 1 }} />
+        {workspaceId && <ReviewButton workspaceId={workspaceId} />}
         <button
           onClick={onCollapse}
           style={{
@@ -114,19 +114,7 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
           <PlaceholderTab label="All Files" description="Browse workspace files" />
         )}
         {activeTab === "checks" && workspaceId && (
-          <div style={{ overflow: "auto" }}>
-            <MergeButton workspaceId={workspaceId} />
-            <div style={{ borderTop: "1px solid var(--border-subtle)" }}>
-              <TodoList workspaceId={workspaceId} />
-            </div>
-            <div style={{ borderTop: "1px solid var(--border-subtle)" }}>
-              <PRCreation
-                workspaceId={workspaceId}
-                taskPrompt={null}
-                existingPrTitle={null}
-              />
-            </div>
-          </div>
+          <ChecksTab workspaceId={workspaceId} />
         )}
         {activeTab === "checks" && !workspaceId && (
           <PlaceholderTab label="Checks" description="Select a workspace" />
