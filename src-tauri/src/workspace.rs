@@ -100,6 +100,13 @@ pub async fn create_workspace(
     // Create git worktree
     git::create_worktree(&repo.path, &branch_name, &worktree_path_str)?;
 
+    // Preserve project files (.env, etc.) from main repo to worktree
+    let orch_config = crate::project_config::OrchestraConfig::load(&repo.path);
+    let patterns = orch_config.effective_preserve_patterns();
+    if let Err(e) = crate::project_config::preserve_files(&repo.path, &worktree_path_str, &patterns) {
+        tracing::warn!("Failed to preserve files: {}", e);
+    }
+
     // Create .context directory
     let context_dir = worktree_path.join(".context");
     std::fs::create_dir_all(context_dir.join("attachments")).map_err(|e| e.to_string())?;

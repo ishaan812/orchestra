@@ -1,3 +1,4 @@
+mod agent_events;
 #[allow(dead_code)]
 mod agents;
 mod checkpoint;
@@ -7,10 +8,12 @@ mod db;
 mod env_vars;
 mod git;
 mod integrations;
+mod lifecycle;
 #[allow(dead_code)]
 mod mcp;
 mod names;
 mod notes;
+mod project_config;
 mod providers;
 mod review;
 mod scripts;
@@ -83,6 +86,11 @@ pub fn run() {
             review::detect_merge_conflicts,
             review::list_workspace_branches,
             review::list_workspace_files,
+            review::add_line_comment,
+            review::get_line_comments,
+            review::update_line_comment,
+            review::delete_line_comment,
+            review::send_comments_to_agent,
             checkpoint::save_checkpoint,
             checkpoint::restore_checkpoint,
             checkpoint::diff_checkpoints,
@@ -130,9 +138,16 @@ pub fn run() {
             providers::get_provider_info,
             providers::save_provider_setting,
             providers::get_provider_settings,
+            lifecycle::run_lifecycle_setup,
+            lifecycle::start_lifecycle_run,
+            lifecycle::stop_lifecycle_run,
+            lifecycle::run_lifecycle_teardown,
+            lifecycle::get_lifecycle_state,
+            lifecycle::get_lifecycle_logs,
         ])
         .manage(session::SessionManager::default())
         .manage(terminal::TerminalManager::default())
+        .manage(lifecycle::LifecycleManager::default())
         .setup(|app| {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

@@ -179,6 +179,189 @@ pub async fn list_workspace_files(
     Ok(files)
 }
 
+// --- Line Comments ---
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LineComment {
+    pub id: String,
+    pub workspace_id: String,
+    pub file_path: String,
+    pub line_number: i64,
+    pub line_content: Option<String>,
+    pub content: String,
+    pub sent_at: Option<String>,
+    pub created_at: String,
+}
+
+#[tauri::command]
+pub async fn add_line_comment(
+    workspace_id: String,
+    file_path: String,
+    line_number: i64,
+    content: String,
+    line_content: Option<String>,
+    db: State<'_, DbPool>,
+) -> Result<LineComment, String> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    sqlx::query(
+        "INSERT INTO line_comments (id, workspace_id, file_path, line_number, line_content, content)
+         VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(&workspace_id)
+    .bind(&file_path)
+    .bind(line_number)
+    .bind(&line_content)
+    .bind(&content)
+    .execute(&db.0)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(LineComment {
+        id,
+        workspace_id,
+        file_path,
+        line_number,
+        line_content,
+        content,
+        sent_at: None,
+        created_at: now,
+    })
+}
+
+#[tauri::command]
+pub async fn get_line_comments(
+    workspace_id: String,
+    file_path: Option<String>,
+    db: State<'_, DbPool>,
+) -> Result<Vec<LineComment>, String> {
+    if let Some(fp) = &file_path {
+        let rows: Vec<LineCommentRow> = sqlx::query_as(
+            "SELECT id, workspace_id, file_path, line_number, line_content, content, sent_at, created_at
+             FROM line_comments WHERE workspace_id = ? AND file_path = ?
+             ORDER BY line_number ASC",
+        )
+        .bind(&workspace_id)
+        .bind(fp)
+        .fetch_all(&db.0)
+        .await
+        .map_err(|e| e.to_string())?;
+        Ok(rows.into_iter().map(LineComment::from).collect())
+    } else {
+        let rows: Vec<LineCommentRow> = sqlx::query_as(
+            "SELECT id, workspace_id, file_path, line_number, line_content, content, sent_at, created_at
+             FROM line_comments WHERE workspace_id = ?
+             ORDER BY file_path ASC, line_number ASC",
+        )
+        .bind(&workspace_id)
+        .fetch_all(&db.0)
+        .await
+        .map_err(|e| e.to_string())?;
+        Ok(rows.into_iter().map(LineComment::from).collect())
+    }
+}
+
+#[tauri::command]
+pub async fn update_line_comment(
+    comment_id: String,
+    content: String,
+    db: State<'_, DbPool>,
+) -> Result<(), String> {
+    sqlx::query("UPDATE line_comments SET content = ? WHERE id = ?")
+        .bind(&content)
+        .bind(&comment_id)
+        .execute(&db.0)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_line_comment(
+    comment_id: String,
+    db: State<'_, DbPool>,
+) -> Result<(), String> {
+    sqlx::query("DELETE FROM line_comments WHERE id = ?")
+        .bind(&comment_id)
+        .execute(&db.0)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn send_comments_to_agent(
+    workspace_id: String,
+    db: State<'_, DbPool>,
+) -> Result<String, String> {
+    let rows: Vec<LineCommentRow> = sqlx::query_as(
+        "SELECT id, workspace_id, file_path, line_number, line_content, content, sent_at, created_at
+         FROM line_comments WHERE workspace_id = ? AND sent_at IS NULL
+         ORDER BY file_path ASC, line_number ASC",
+    )
+    .bind(&workspace_id)
+    .fetch_all(&db.0)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    if rows.is_empty() {
+        return Ok("No unsent comments".to_string());
+    }
+
+    // Build a message from all unsent comments
+    let mut message = String::from("Please address these code review comments:\n\n");
+    for row in &rows {
+        message.push_str(&format!(
+            "**{}:{}**",
+            row.file_path, row.line_number
+        ));
+        if let Some(ref lc) = row.line_content {
+            message.push_str(&format!(" (`{}`)", lc));
+        }
+        message.push_str(&format!(": {}\n\n", row.content));
+    }
+
+    // Mark all as sent
+    let now = chrono::Utc::now().to_rfc3339();
+    sqlx::query("UPDATE line_comments SET sent_at = ? WHERE workspace_id = ? AND sent_at IS NULL")
+        .bind(&now)
+        .bind(&workspace_id)
+        .execute(&db.0)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(message)
+}
+
+#[derive(sqlx::FromRow)]
+struct LineCommentRow {
+    id: String,
+    workspace_id: String,
+    file_path: String,
+    line_number: i64,
+    line_content: Option<String>,
+    content: String,
+    sent_at: Option<String>,
+    created_at: String,
+}
+
+impl From<LineCommentRow> for LineComment {
+    fn from(r: LineCommentRow) -> Self {
+        Self {
+            id: r.id,
+            workspace_id: r.workspace_id,
+            file_path: r.file_path,
+            line_number: r.line_number,
+            line_content: r.line_content,
+            content: r.content,
+            sent_at: r.sent_at,
+            created_at: r.created_at,
+        }
+    }
+}
+
 // --- helpers ---
 
 async fn get_workspace_paths(
