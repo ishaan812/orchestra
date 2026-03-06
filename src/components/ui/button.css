@@ -1,0 +1,98 @@
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  border: none;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+
+.ui-button:disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.ui-button:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Variants */
+.ui-button--default {
+  background: var(--accent-primary);
+  color: var(--bg-base);
+}
+.ui-button--default:hover {
+  background: var(--accent-hover);
+}
+
+.ui-button--destructive {
+  background: var(--error);
+  color: var(--text-primary);
+}
+.ui-button--destructive:hover {
+  opacity: 0.9;
+}
+
+.ui-button--outline {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+}
+.ui-button--outline:hover {
+  background: var(--bg-surface-hover);
+}
+
+.ui-button--secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.ui-button--secondary:hover {
+  background: var(--bg-surface-active);
+}
+
+.ui-button--ghost {
+  background: transparent;
+  color: var(--text-primary);
+}
+.ui-button--ghost:hover {
+  background: var(--bg-surface-hover);
+}
+
+.ui-button--link {
+  background: transparent;
+  color: var(--accent-primary);
+  text-decoration-line: underline;
+  text-underline-offset: 4px;
+}
+
+/* Sizes */
+.ui-button--default-size, .ui-button--default:not([class*="ui-button--sm"]):not([class*="ui-button--lg"]):not([class*="ui-button--icon"]) {
+  height: 36px;
+  padding: 0 var(--space-4);
+}
+.ui-button--sm {
+  height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+}
+.ui-button--lg {
+  height: 40px;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-md);
+}
+.ui-button--icon {
+  height: 36px;
+  width: 36px;
+  padding: 0;
+}
+.ui-button--icon-sm {
+  height: 28px;
+  width: 28px;
+  padding: 0;
+}
