@@ -1,8 +1,10 @@
 pub mod claude;
+pub mod codex;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ModelInfo {
@@ -98,4 +100,13 @@ pub trait AgentAdapter: Send + Sync {
         env: &HashMap<String, String>,
     ) -> Result<AgentProcess, String>;
     fn parse_output(&self, raw: &str) -> Vec<AgentMessage>;
+}
+
+/// Create an adapter for the given provider ID.
+pub fn create_adapter(provider_id: &str) -> Result<Arc<dyn AgentAdapter>, String> {
+    match provider_id {
+        "claude" | "claude-code" => Ok(Arc::new(claude::ClaudeAdapter)),
+        "codex" => Ok(Arc::new(codex::CodexAdapter)),
+        _ => Err(format!("Unknown provider: {}", provider_id)),
+    }
 }

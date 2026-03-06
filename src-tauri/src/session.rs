@@ -1,4 +1,3 @@
-use crate::agents::claude::ClaudeAdapter;
 use crate::agents::{AgentAdapter, AgentConfig, AgentProcess};
 use crate::db::DbPool;
 use serde::{Deserialize, Serialize};
@@ -100,8 +99,8 @@ pub async fn create_session(
         custom_instructions,
     };
 
-    // Spawn the agent
-    let adapter = ClaudeAdapter;
+    // Spawn the agent using the provider-agnostic adapter factory
+    let adapter = crate::agents::create_adapter(&params.agent_type)?;
     let env = HashMap::new();
     let mut process = adapter.spawn(&config, std::path::Path::new(&worktree_path), &env)?;
 
@@ -121,7 +120,7 @@ pub async fn create_session(
     let app_handle = app.clone();
 
     tokio::spawn(async move {
-        stream_agent_output(session_id, stdout, &db_pool, &app_handle, Arc::new(adapter)).await;
+        stream_agent_output(session_id, stdout, &db_pool, &app_handle, adapter).await;
     });
 
     // Insert initial user message

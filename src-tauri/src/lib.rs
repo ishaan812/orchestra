@@ -11,6 +11,7 @@ mod integrations;
 mod mcp;
 mod names;
 mod notes;
+mod providers;
 mod review;
 mod scripts;
 mod session;
@@ -124,6 +125,11 @@ pub fn run() {
             integrations::linear::search_linear_issues,
             integrations::linear::link_issue_to_workspace,
             integrations::linear::get_linked_issue,
+            providers::list_providers,
+            providers::detect_providers,
+            providers::get_provider_info,
+            providers::save_provider_setting,
+            providers::get_provider_settings,
         ])
         .manage(session::SessionManager::default())
         .manage(terminal::TerminalManager::default())
