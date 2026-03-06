@@ -11,8 +11,8 @@ interface DiffPanelProps {
   onRefresh: () => void;
 }
 
-type ViewTab = 'changes' | 'history';
-type DiffMode = 'side-by-side' | 'inline' | 'stacked';
+export type ViewTab = 'changes' | 'history';
+export type DiffMode = 'side-by-side' | 'inline' | 'stacked';
 
 export function DiffPanel({ workspaceId, changes, onRefresh }: DiffPanelProps) {
   const [activeTab, setActiveTab] = useState<ViewTab>('changes');

@@ -96,25 +96,32 @@ pub fn preserve_files(
         let src_file = source.join(pattern);
         let dst_file = dest.join(pattern);
 
-        if !src_file.exists() {
-            continue;
-        }
-
-        if dst_file.exists() {
-            result.skipped.push(pattern.clone());
-            continue;
-        }
-
         // Ensure parent directory exists
         if let Some(parent) = dst_file.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            let _ = std::fs::create_dir_all(parent);
         }
 
-        if src_file.is_file() {
-            std::fs::copy(&src_file, &dst_file).map_err(|e| e.to_string())?;
-            result.copied.push(pattern.clone());
-        } else if src_file.is_dir() {
-            // Skip excluded directories
+        // Try to copy directly and handle errors, avoiding TOCTOU races
+        let metadata = match std::fs::metadata(&src_file) {
+            Ok(m) => m,
+            Err(_) => continue, // Source doesn't exist
+        };
+
+        if metadata.is_file() {
+            match std::fs::copy(&src_file, &dst_file) {
+                Ok(_) => result.copied.push(pattern.clone()),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                    result.skipped.push(pattern.clone());
+                }
+                Err(_) => {
+                    // Destination may already exist (no AlreadyExists on some platforms for copy)
+                    if dst_file.exists() {
+                        result.skipped.push(pattern.clone());
+                    }
+                    // Otherwise silently skip — source may have vanished
+                }
+            }
+        } else if metadata.is_dir() {
             let name = src_file
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
@@ -122,8 +129,11 @@ pub fn preserve_files(
             if EXCLUDE_PATTERNS.contains(&name.as_str()) {
                 continue;
             }
-            copy_dir_preserving(&src_file, &dst_file)?;
-            result.copied.push(pattern.clone());
+            match copy_dir_preserving(&src_file, &dst_file) {
+                Ok(_) => result.copied.push(pattern.clone()),
+                Err(_) if dst_file.exists() => result.skipped.push(pattern.clone()),
+                Err(e) => return Err(e),
+            }
         }
     }
 

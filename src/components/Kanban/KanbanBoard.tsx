@@ -8,6 +8,14 @@ interface KanbanBoardProps {
   onStatusChange?: (wsId: string, newStatus: string) => void;
 }
 
+/** DB status values use hyphens; column keys use underscores to match WorkspaceGroup fields. */
+const COLUMN_TO_DB_STATUS: Record<string, string> = {
+  backlog: 'backlog',
+  in_progress: 'in-progress',
+  in_review: 'in-review',
+  done: 'done',
+};
+
 const COLUMNS = [
   { key: 'backlog' as const, label: 'Backlog', color: 'var(--text-secondary)' },
   { key: 'in_progress' as const, label: 'In Progress', color: 'var(--accent-primary)' },
@@ -24,13 +32,7 @@ export function KanbanBoard({ workspaces, onSelectWorkspace, onStatusChange }: K
   };
 
   const handleDrop = (wsId: string, targetColumn: string) => {
-    const statusMap: Record<string, string> = {
-      backlog: 'backlog',
-      in_progress: 'in-progress',
-      in_review: 'in-review',
-      done: 'done',
-    };
-    onStatusChange?.(wsId, statusMap[targetColumn] ?? targetColumn);
+    onStatusChange?.(wsId, COLUMN_TO_DB_STATUS[targetColumn] ?? targetColumn);
   };
 
   return (

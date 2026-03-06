@@ -1,8 +1,10 @@
+import type { ViewTab, DiffMode } from './DiffPanel';
+
 interface DiffToolbarProps {
-  activeTab: string;
-  onTabChange: (tab: any) => void;
-  diffMode: string;
-  onDiffModeChange: (mode: any) => void;
+  activeTab: ViewTab;
+  onTabChange: (tab: ViewTab) => void;
+  diffMode: DiffMode;
+  onDiffModeChange: (mode: DiffMode) => void;
   onRefresh: () => void;
   stats?: { files_changed: number; insertions: number; deletions: number } | null;
 }

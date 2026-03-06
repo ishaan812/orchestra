@@ -373,16 +373,20 @@ pub struct DeviceFlowTokenResponse {
 pub async fn github_device_flow_start(
     client_id: String,
 ) -> Result<DeviceFlowResponse, String> {
-    let output = Command::new("curl")
-        .args([
-            "-s",
-            "-X", "POST",
-            "https://github.com/login/device/code",
-            "-H", "Accept: application/json",
-            "-d", &format!("client_id={}&scope=repo,read:org", client_id),
-        ])
-        .output()
-        .map_err(|e| format!("Failed to start device flow: {e}"))?;
+    let output = tokio::task::spawn_blocking(move || {
+        Command::new("curl")
+            .args([
+                "-s",
+                "-X", "POST",
+                "https://github.com/login/device/code",
+                "-H", "Accept: application/json",
+                "-d", &format!("client_id={}&scope=repo,read:org", client_id),
+            ])
+            .output()
+    })
+    .await
+    .map_err(|e| format!("Task join error: {e}"))?
+    .map_err(|e| format!("Failed to start device flow: {e}"))?;
 
     if !output.status.success() {
         return Err("Device flow request failed".to_string());
@@ -398,19 +402,23 @@ pub async fn github_device_flow_poll(
     client_id: String,
     device_code: String,
 ) -> Result<DeviceFlowTokenResponse, String> {
-    let output = Command::new("curl")
-        .args([
-            "-s",
-            "-X", "POST",
-            "https://github.com/login/oauth/access_token",
-            "-H", "Accept: application/json",
-            "-d", &format!(
-                "client_id={}&device_code={}&grant_type=urn:ietf:params:oauth:grant-type:device_code",
-                client_id, device_code
-            ),
-        ])
-        .output()
-        .map_err(|e| format!("Failed to poll device flow: {e}"))?;
+    let output = tokio::task::spawn_blocking(move || {
+        Command::new("curl")
+            .args([
+                "-s",
+                "-X", "POST",
+                "https://github.com/login/oauth/access_token",
+                "-H", "Accept: application/json",
+                "-d", &format!(
+                    "client_id={}&device_code={}&grant_type=urn:ietf:params:oauth:grant-type:device_code",
+                    client_id, device_code
+                ),
+            ])
+            .output()
+    })
+    .await
+    .map_err(|e| format!("Task join error: {e}"))?
+    .map_err(|e| format!("Failed to poll device flow: {e}"))?;
 
     if !output.status.success() {
         return Err("Device flow poll failed".to_string());
@@ -523,11 +531,17 @@ pub async fn clone_repo_from_url(
         }),
     );
 
-    // Clone using git
-    let output = Command::new("git")
-        .args(["clone", &url, &clone_dir_str])
-        .output()
-        .map_err(|e| format!("Failed to clone: {e}"))?;
+    // Clone using git (in spawn_blocking to avoid blocking tokio runtime)
+    let url_clone = url.clone();
+    let dir_clone = clone_dir_str.clone();
+    let output = tokio::task::spawn_blocking(move || {
+        Command::new("git")
+            .args(["clone", &url_clone, &dir_clone])
+            .output()
+    })
+    .await
+    .map_err(|e| format!("Task join error: {e}"))?
+    .map_err(|e| format!("Failed to clone: {e}"))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -543,21 +557,26 @@ pub async fn clone_repo_from_url(
     }
 
     // Detect default branch
-    let default_branch = Command::new("git")
-        .args(["symbolic-ref", "--short", "HEAD"])
-        .current_dir(&clone_dir_str)
-        .output()
-        .ok()
-        .and_then(|o| {
-            if o.status.success() {
-                String::from_utf8(o.stdout)
-                    .ok()
-                    .map(|s| s.trim().to_string())
-            } else {
-                None
-            }
-        })
-        .unwrap_or_else(|| "main".to_string());
+    let dir_for_branch = clone_dir_str.clone();
+    let default_branch = tokio::task::spawn_blocking(move || {
+        Command::new("git")
+            .args(["symbolic-ref", "--short", "HEAD"])
+            .current_dir(&dir_for_branch)
+            .output()
+            .ok()
+            .and_then(|o| {
+                if o.status.success() {
+                    String::from_utf8(o.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| "main".to_string())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {e}"))?;
 
     let _ = app.emit(
         "clone:status",

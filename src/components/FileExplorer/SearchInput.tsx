@@ -1,20 +1,31 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface SearchInputProps {
   onSearch: (query: string) => void;
   placeholder?: string;
+  debounceMs?: number;
 }
 
-export function SearchInput({ onSearch, placeholder = 'Search files...' }: SearchInputProps) {
+export function SearchInput({ onSearch, placeholder = 'Search files...', debounceMs = 200 }: SearchInputProps) {
   const [query, setQuery] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onSearchRef = useRef(onSearch);
+  onSearchRef.current = onSearch;
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value;
       setQuery(val);
-      onSearch(val);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => onSearchRef.current(val), debounceMs);
     },
-    [onSearch]
+    [debounceMs]
   );
 
   return (

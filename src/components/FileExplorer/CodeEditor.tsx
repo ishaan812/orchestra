@@ -30,6 +30,31 @@ function detectLanguage(filename: string): string {
   return map[ext] ?? 'plaintext';
 }
 
+// Module-level cache: attempt Monaco import once, reuse across all mounts
+let monacoPromise: Promise<any> | null = null;
+let cachedMonaco: any = null;
+let monacoFailed = false;
+
+function loadMonaco(): Promise<any> {
+  if (cachedMonaco) return Promise.resolve(cachedMonaco);
+  if (monacoFailed) return Promise.resolve(null);
+  if (!monacoPromise) {
+    monacoPromise = (
+      // @ts-ignore - Monaco may not be installed yet
+      import('@monaco-editor/react') as Promise<any>
+    )
+      .then((mod: any) => {
+        cachedMonaco = mod.default;
+        return cachedMonaco;
+      })
+      .catch(() => {
+        monacoFailed = true;
+        return null;
+      });
+  }
+  return monacoPromise;
+}
+
 /**
  * Code editor component. Uses Monaco when available, falls back to a
  * simple <pre> viewer. Monaco is loaded dynamically to avoid blocking
@@ -37,16 +62,15 @@ function detectLanguage(filename: string): string {
  */
 export function CodeEditor({ content, filename, language, readOnly = true }: CodeEditorProps) {
   const lang = language ?? detectLanguage(filename);
-  const [MonacoEditor, setMonacoEditor] = useState<any>(null);
+  const [MonacoEditor, setMonacoEditor] = useState<any>(cachedMonaco);
 
   useEffect(() => {
-    // @ts-ignore - Monaco may not be installed yet
-    import('@monaco-editor/react')
-      .then((mod: any) => setMonacoEditor(() => mod.default))
-      .catch(() => {
-        // Monaco not available, use fallback
+    if (!MonacoEditor && !monacoFailed) {
+      loadMonaco().then((editor) => {
+        if (editor) setMonacoEditor(() => editor);
       });
-  }, []);
+    }
+  }, [MonacoEditor]);
 
   if (MonacoEditor) {
     return (

@@ -1,6 +1,6 @@
 use crate::db::DbPool;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::Mutex;
@@ -9,11 +9,14 @@ use tracing::{info, warn};
 /// Maximum number of log lines to keep per phase.
 const MAX_LOG_LINES: usize = 1000;
 
-/// Timeout in seconds for waiting for the run process to exit during teardown.
-const TEARDOWN_WAIT_TIMEOUT_SECS: u64 = 10;
-
 /// Grace period in seconds before SIGKILL after SIGTERM.
 const KILL_GRACE_SECS: u64 = 8;
+
+/// Poll interval when waiting for a process to exit after SIGTERM during teardown.
+const TEARDOWN_POLL_INTERVAL_MS: u64 = 200;
+
+/// Maximum time to wait for a process to exit during teardown.
+const TEARDOWN_WAIT_TIMEOUT_SECS: u64 = 10;
 
 // ── Data structures ──
 
@@ -64,9 +67,9 @@ pub struct LifecycleEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LifecycleLogs {
-    pub setup: Vec<String>,
-    pub run: Vec<String>,
-    pub teardown: Vec<String>,
+    pub setup: VecDeque<String>,
+    pub run: VecDeque<String>,
+    pub teardown: VecDeque<String>,
 }
 
 // ── Internal state ──
@@ -74,7 +77,6 @@ pub struct LifecycleLogs {
 struct TaskState {
     lifecycle: TaskLifecycleState,
     logs: LifecycleLogs,
-    run_pid: Option<u32>,
 }
 
 impl TaskState {
@@ -87,15 +89,20 @@ impl TaskState {
                 teardown: PhaseState::default(),
             },
             logs: LifecycleLogs::default(),
-            run_pid: None,
         }
+    }
+
+    /// Get the run PID from the canonical location (RunPhaseState.pid).
+    fn run_pid(&self) -> Option<u32> {
+        self.lifecycle.run.pid
     }
 }
 
 /// Manages lifecycle states for all tasks.
-#[derive(Default)]
+/// Uses Arc<Mutex<>> so state can be shared with background tasks.
+#[derive(Default, Clone)]
 pub struct LifecycleManager {
-    states: Mutex<HashMap<String, TaskState>>,
+    states: Arc<Mutex<HashMap<String, TaskState>>>,
 }
 
 fn now_iso() -> String {
@@ -106,11 +113,125 @@ fn emit_event(app: &AppHandle, event: &LifecycleEvent) {
     let _ = app.emit("lifecycle:event", event);
 }
 
-fn push_log(logs: &mut Vec<String>, line: &str) {
-    if logs.len() >= MAX_LOG_LINES {
-        logs.remove(0);
+fn make_event(task_id: &str, phase: &str, status: &str) -> LifecycleEvent {
+    LifecycleEvent {
+        task_id: task_id.to_string(),
+        phase: phase.to_string(),
+        status: status.to_string(),
+        timestamp: now_iso(),
+        line: None,
+        error: None,
+        exit_code: None,
     }
-    logs.push(line.to_string());
+}
+
+fn push_log(logs: &mut VecDeque<String>, line: &str) {
+    if logs.len() >= MAX_LOG_LINES {
+        logs.pop_front();
+    }
+    logs.push_back(line.to_string());
+}
+
+/// Check if a PID is still alive (without waiting).
+fn pid_alive(pid: u32) -> bool {
+    unsafe { libc::kill(pid as libc::pid_t, 0) == 0 }
+}
+
+// ── Shared phase runner ──
+
+/// Runs a lifecycle phase (setup or teardown) with common state management, event
+/// emission, and logging. This eliminates duplication between the two phases.
+async fn run_phase(
+    workspace_id: &str,
+    phase_name: &str,
+    script: &str,
+    worktree_path: &str,
+    app: &AppHandle,
+    manager: &LifecycleManager,
+) -> Result<(), String> {
+    // Guard against re-entry and set Running
+    {
+        let mut states = manager.states.lock().await;
+        let state = states
+            .entry(workspace_id.to_string())
+            .or_insert_with(|| TaskState::new(workspace_id));
+
+        let phase = match phase_name {
+            "setup" => &mut state.lifecycle.setup,
+            "teardown" => &mut state.lifecycle.teardown,
+            _ => return Err(format!("Unknown phase: {}", phase_name)),
+        };
+
+        if phase.status == PhaseStatus::Running {
+            return Ok(()); // Already running, deduplicate
+        }
+
+        *phase = PhaseState {
+            status: PhaseStatus::Running,
+            error: None,
+            exit_code: None,
+            started_at: Some(now_iso()),
+            finished_at: None,
+        };
+    }
+
+    emit_event(app, &make_event(workspace_id, phase_name, "starting"));
+
+    // Run the script
+    let result = run_script_with_logging(
+        script,
+        worktree_path,
+        workspace_id,
+        phase_name,
+        app,
+        manager,
+    )
+    .await;
+
+    // Update state with result
+    {
+        let mut states = manager.states.lock().await;
+        if let Some(state) = states.get_mut(workspace_id) {
+            let phase = match phase_name {
+                "setup" => &mut state.lifecycle.setup,
+                "teardown" => &mut state.lifecycle.teardown,
+                _ => return Err(format!("Unknown phase: {}", phase_name)),
+            };
+
+            match &result {
+                Ok(code) => {
+                    phase.status = if *code == 0 {
+                        PhaseStatus::Succeeded
+                    } else {
+                        PhaseStatus::Failed
+                    };
+                    phase.exit_code = Some(*code);
+                }
+                Err(e) => {
+                    phase.status = PhaseStatus::Failed;
+                    phase.error = Some(e.clone());
+                }
+            }
+            phase.finished_at = Some(now_iso());
+        }
+    }
+
+    let exit_code = result.as_ref().ok().copied();
+    let error = result.as_ref().err().cloned();
+    emit_event(
+        app,
+        &LifecycleEvent {
+            task_id: workspace_id.to_string(),
+            phase: phase_name.to_string(),
+            status: if exit_code == Some(0) { "done" } else { "error" }.to_string(),
+            timestamp: now_iso(),
+            line: None,
+            error,
+            exit_code,
+        },
+    );
+
+    result.map(|_| ())
 }
 
 // ── Tauri commands ──
@@ -126,7 +247,6 @@ pub async fn run_lifecycle_setup(
     let config = crate::project_config::OrchestraConfig::load(&repo_path);
 
     let script = config.setup.or_else(|| {
-        // Fall back to conductor.json setup scripts
         let conductor = crate::scripts::parse_conductor_config(&repo_path);
         if conductor.setup.is_empty() {
             None
@@ -137,96 +257,10 @@ pub async fn run_lifecycle_setup(
 
     let script = match script {
         Some(s) => s,
-        None => return Ok(()), // No setup script configured
+        None => return Ok(()),
     };
 
-    // Initialize state
-    {
-        let mut states = manager.states.lock().await;
-        let state = states
-            .entry(workspace_id.clone())
-            .or_insert_with(|| TaskState::new(&workspace_id));
-
-        if state.lifecycle.setup.status == PhaseStatus::Running {
-            return Ok(()); // Already running, deduplicate
-        }
-
-        state.lifecycle.setup = PhaseState {
-            status: PhaseStatus::Running,
-            error: None,
-            exit_code: None,
-            started_at: Some(now_iso()),
-            finished_at: None,
-        };
-    }
-
-    emit_event(
-        &app,
-        &LifecycleEvent {
-            task_id: workspace_id.clone(),
-            phase: "setup".to_string(),
-            status: "starting".to_string(),
-            timestamp: now_iso(),
-            line: None,
-            error: None,
-            exit_code: None,
-        },
-    );
-
-    // Run the script
-    let result = run_script_with_logging(
-        &script,
-        &worktree_path,
-        &workspace_id,
-        "setup",
-        &app,
-        &manager,
-    )
-    .await;
-
-    // Update state
-    {
-        let mut states = manager.states.lock().await;
-        if let Some(state) = states.get_mut(&workspace_id) {
-            match &result {
-                Ok(code) => {
-                    state.lifecycle.setup.status = if *code == 0 {
-                        PhaseStatus::Succeeded
-                    } else {
-                        PhaseStatus::Failed
-                    };
-                    state.lifecycle.setup.exit_code = Some(*code);
-                }
-                Err(e) => {
-                    state.lifecycle.setup.status = PhaseStatus::Failed;
-                    state.lifecycle.setup.error = Some(e.clone());
-                }
-            }
-            state.lifecycle.setup.finished_at = Some(now_iso());
-        }
-    }
-
-    let exit_code = result.as_ref().ok().copied();
-    let error = result.as_ref().err().cloned();
-    emit_event(
-        &app,
-        &LifecycleEvent {
-            task_id: workspace_id,
-            phase: "setup".to_string(),
-            status: if exit_code == Some(0) {
-                "done"
-            } else {
-                "error"
-            }
-            .to_string(),
-            timestamp: now_iso(),
-            line: None,
-            error,
-            exit_code,
-        },
-    );
-
-    result.map(|_| ())
+    run_phase(&workspace_id, "setup", &script, &worktree_path, &app, &manager).await
 }
 
 #[tauri::command]
@@ -236,7 +270,7 @@ pub async fn start_lifecycle_run(
     db: State<'_, DbPool>,
     manager: State<'_, LifecycleManager>,
 ) -> Result<(), String> {
-    // Validate setup succeeded
+    // Validate setup is not still running
     {
         let states = manager.states.lock().await;
         if let Some(state) = states.get(&workspace_id) {
@@ -264,7 +298,7 @@ pub async fn start_lifecycle_run(
         let states = manager.states.lock().await;
         if let Some(state) = states.get(&workspace_id) {
             if state.lifecycle.run.phase.status == PhaseStatus::Running {
-                return Ok(()); // Already running
+                return Ok(());
             }
         }
     }
@@ -281,7 +315,7 @@ pub async fn start_lifecycle_run(
 
     let pid = child.id().unwrap_or(0);
 
-    // Update state
+    // Update state — single source of truth for PID in RunPhaseState.pid
     {
         let mut states = manager.states.lock().await;
         let state = states
@@ -297,49 +331,52 @@ pub async fn start_lifecycle_run(
             },
             pid: Some(pid),
         };
-        state.run_pid = Some(pid);
     }
 
-    emit_event(
-        &app,
-        &LifecycleEvent {
-            task_id: workspace_id.clone(),
-            phase: "run".to_string(),
-            status: "starting".to_string(),
-            timestamp: now_iso(),
-            line: None,
-            error: None,
-            exit_code: None,
-        },
-    );
+    emit_event(&app, &make_event(&workspace_id, "run", "starting"));
 
-    // Spawn background task to stream output and wait for exit
-    let manager_arc = Arc::new(Mutex::new(()));
+    // Spawn background task to wait for exit and update state
+    let manager_ref = (*manager).clone();
     let ws_id = workspace_id.clone();
     let app_clone = app.clone();
     tokio::spawn(async move {
         let output = child.wait_with_output().await;
-        match output {
-            Ok(out) => {
-                let exit_code = out.status.code().unwrap_or(-1);
-                let _ = app_clone.emit(
-                    "lifecycle:event",
-                    LifecycleEvent {
-                        task_id: ws_id.clone(),
-                        phase: "run".to_string(),
-                        status: "exit".to_string(),
-                        timestamp: now_iso(),
-                        line: None,
-                        error: None,
-                        exit_code: Some(exit_code),
-                    },
-                );
-            }
+        let (exit_code, error_msg) = match output {
+            Ok(out) => (out.status.code().unwrap_or(-1), None),
             Err(e) => {
                 warn!("Run process error for {}: {}", ws_id, e);
+                (-1, Some(e.to_string()))
+            }
+        };
+
+        // Update lifecycle state on exit
+        {
+            let mut states = manager_ref.states.lock().await;
+            if let Some(state) = states.get_mut(&ws_id) {
+                state.lifecycle.run.phase.status = if exit_code == 0 {
+                    PhaseStatus::Succeeded
+                } else {
+                    PhaseStatus::Failed
+                };
+                state.lifecycle.run.phase.exit_code = Some(exit_code);
+                state.lifecycle.run.phase.error = error_msg.clone();
+                state.lifecycle.run.phase.finished_at = Some(now_iso());
+                state.lifecycle.run.pid = None;
             }
         }
-        drop(manager_arc);
+
+        let _ = app_clone.emit(
+            "lifecycle:event",
+            LifecycleEvent {
+                task_id: ws_id,
+                phase: "run".to_string(),
+                status: "exit".to_string(),
+                timestamp: now_iso(),
+                line: None,
+                error: error_msg,
+                exit_code: Some(exit_code),
+            },
+        );
     });
 
     Ok(())
@@ -352,9 +389,7 @@ pub async fn stop_lifecycle_run(
 ) -> Result<(), String> {
     let pid = {
         let states = manager.states.lock().await;
-        states
-            .get(&workspace_id)
-            .and_then(|s| s.run_pid)
+        states.get(&workspace_id).and_then(|s| s.run_pid())
     };
 
     if let Some(pid) = pid {
@@ -363,12 +398,13 @@ pub async fn stop_lifecycle_run(
             libc::kill(pid as libc::pid_t, libc::SIGTERM);
         }
 
-        // Wait grace period, then SIGKILL
-        let pid_copy = pid;
+        // Wait grace period, then SIGKILL only if still alive
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_secs(KILL_GRACE_SECS)).await;
-            unsafe {
-                libc::kill(pid_copy as libc::pid_t, libc::SIGKILL);
+            if pid_alive(pid) {
+                unsafe {
+                    libc::kill(pid as libc::pid_t, libc::SIGKILL);
+                }
             }
         });
 
@@ -377,7 +413,7 @@ pub async fn stop_lifecycle_run(
         if let Some(state) = states.get_mut(&workspace_id) {
             state.lifecycle.run.phase.status = PhaseStatus::Succeeded;
             state.lifecycle.run.phase.finished_at = Some(now_iso());
-            state.run_pid = None;
+            state.lifecycle.run.pid = None;
         }
     }
 
@@ -394,16 +430,25 @@ pub async fn run_lifecycle_teardown(
     // Ensure run process is stopped first
     let run_pid = {
         let states = manager.states.lock().await;
-        states.get(&workspace_id).and_then(|s| s.run_pid)
+        states.get(&workspace_id).and_then(|s| s.run_pid())
     };
 
     if let Some(pid) = run_pid {
-        // Stop the run process
         unsafe {
             libc::kill(pid as libc::pid_t, libc::SIGTERM);
         }
-        // Wait for it to exit
-        tokio::time::sleep(std::time::Duration::from_secs(TEARDOWN_WAIT_TIMEOUT_SECS)).await;
+        // Poll for exit instead of unconditionally sleeping
+        let deadline = std::time::Instant::now()
+            + std::time::Duration::from_secs(TEARDOWN_WAIT_TIMEOUT_SECS);
+        while std::time::Instant::now() < deadline && pid_alive(pid) {
+            tokio::time::sleep(std::time::Duration::from_millis(TEARDOWN_POLL_INTERVAL_MS)).await;
+        }
+        // Force kill if still alive
+        if pid_alive(pid) {
+            unsafe {
+                libc::kill(pid as libc::pid_t, libc::SIGKILL);
+            }
+        }
     }
 
     let (worktree_path, repo_path) = get_workspace_paths(&workspace_id, &db).await?;
@@ -414,72 +459,7 @@ pub async fn run_lifecycle_teardown(
         None => return Ok(()),
     };
 
-    // Update state
-    {
-        let mut states = manager.states.lock().await;
-        let state = states
-            .entry(workspace_id.clone())
-            .or_insert_with(|| TaskState::new(&workspace_id));
-
-        if state.lifecycle.teardown.status == PhaseStatus::Running {
-            return Ok(()); // Already running
-        }
-
-        state.lifecycle.teardown = PhaseState {
-            status: PhaseStatus::Running,
-            error: None,
-            exit_code: None,
-            started_at: Some(now_iso()),
-            finished_at: None,
-        };
-    }
-
-    emit_event(
-        &app,
-        &LifecycleEvent {
-            task_id: workspace_id.clone(),
-            phase: "teardown".to_string(),
-            status: "starting".to_string(),
-            timestamp: now_iso(),
-            line: None,
-            error: None,
-            exit_code: None,
-        },
-    );
-
-    let result = run_script_with_logging(
-        &script,
-        &worktree_path,
-        &workspace_id,
-        "teardown",
-        &app,
-        &manager,
-    )
-    .await;
-
-    // Update state
-    {
-        let mut states = manager.states.lock().await;
-        if let Some(state) = states.get_mut(&workspace_id) {
-            match &result {
-                Ok(code) => {
-                    state.lifecycle.teardown.status = if *code == 0 {
-                        PhaseStatus::Succeeded
-                    } else {
-                        PhaseStatus::Failed
-                    };
-                    state.lifecycle.teardown.exit_code = Some(*code);
-                }
-                Err(e) => {
-                    state.lifecycle.teardown.status = PhaseStatus::Failed;
-                    state.lifecycle.teardown.error = Some(e.clone());
-                }
-            }
-            state.lifecycle.teardown.finished_at = Some(now_iso());
-        }
-    }
-
-    result.map(|_| ())
+    run_phase(&workspace_id, "teardown", &script, &worktree_path, &app, &manager).await
 }
 
 #[tauri::command]
