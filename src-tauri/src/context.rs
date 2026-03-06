@@ -176,7 +176,7 @@ pub async fn unarchive_context(
     Ok(())
 }
 
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+pub(crate) fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
 
     for entry in std::fs::read_dir(src).map_err(|e| e.to_string())? {

@@ -21,7 +21,7 @@ pub async fn add_repo(path: String, db: State<'_, DbPool>) -> Result<RepoInfo, S
 
     let name = std::path::Path::new(&path)
         .file_name()
-        .map(|n| n.to_string_lossy().to_string())
+        .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "unknown".to_string());
 
     let remote_url = repo
@@ -132,7 +132,7 @@ fn find_default_branch(repo: &git2::Repository) -> String {
             .find_branch(candidate, git2::BranchType::Local)
             .is_ok()
         {
-            return (*candidate).to_string();
+            return candidate.to_string();
         }
     }
 

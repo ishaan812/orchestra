@@ -100,7 +100,7 @@ pub fn remove_worktree(
     // Find and prune the worktree
     let worktree_name = Path::new(worktree_path)
         .file_name()
-        .map(|n| n.to_string_lossy().to_string())
+        .map(|n| n.to_string_lossy().into_owned())
         .ok_or("Invalid worktree path")?;
 
     if let Ok(wt) = repo.find_worktree(&worktree_name) {
@@ -156,12 +156,12 @@ pub fn get_diff_stats(worktree_path: &str, base_branch: &str) -> Result<DiffStat
 
     let num_deltas = diff.deltas().len();
     for i in 0..num_deltas {
-        let delta = diff.get_delta(i).unwrap();
+        let delta = diff.get_delta(i).expect("delta index within num_deltas bounds");
         let path = delta
             .new_file()
             .path()
             .or_else(|| delta.old_file().path())
-            .map(|p| p.to_string_lossy().to_string())
+            .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_default();
 
         let status = match delta.status() {
@@ -191,7 +191,7 @@ pub fn get_diff_stats(worktree_path: &str, base_branch: &str) -> Result<DiffStat
             let path = delta
                 .new_file()
                 .path()
-                .map(|p| p.to_string_lossy().to_string())
+                .map(|p| p.to_string_lossy().into_owned())
                 .unwrap_or_default();
             if let Some(file) = files_map.get_mut(&path) {
                 match line.origin() {
@@ -348,7 +348,7 @@ pub fn merge_branch(
             .filter_map(|c| {
                 c.our
                     .as_ref()
-                    .map(|e| String::from_utf8_lossy(&e.path).to_string())
+                    .map(|e| String::from_utf8_lossy(&e.path).into_owned())
             })
             .collect();
 
@@ -493,7 +493,7 @@ pub fn detect_conflicts(worktree_path: &str, target_branch: &str) -> Result<Vec<
         .filter_map(|c| {
             c.our
                 .as_ref()
-                .map(|e| String::from_utf8_lossy(&e.path).to_string())
+                .map(|e| String::from_utf8_lossy(&e.path).into_owned())
         })
         .collect();
 

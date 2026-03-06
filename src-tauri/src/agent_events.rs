@@ -109,17 +109,13 @@ pub fn parse_codex_event(line: &str, session_id: &str) -> Option<AgentEvent> {
     // Codex is terminal-only, try JSON first
     if line.starts_with('{') {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
-            let event_type = json.get("type").and_then(|t| t.as_str());
-            if let Some(et) = event_type {
-                return match et {
-                    "error" => Some(AgentEvent {
-                        event_type: AgentEventType::Error,
-                        session_id: session_id.to_string(),
-                        timestamp: now,
-                        data: json,
-                    }),
-                    _ => None,
-                };
+            if let Some("error") = json.get("type").and_then(|t| t.as_str()) {
+                return Some(AgentEvent {
+                    event_type: AgentEventType::Error,
+                    session_id: session_id.to_string(),
+                    timestamp: now,
+                    data: json,
+                });
             }
         }
     }

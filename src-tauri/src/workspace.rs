@@ -1,3 +1,4 @@
+use crate::context::copy_dir_recursive;
 use crate::db::DbPool;
 use crate::git;
 use crate::names;
@@ -95,7 +96,7 @@ pub async fn create_workspace(
         .join("workspaces")
         .join(&repo.name)
         .join(&ws_name);
-    let worktree_path_str = worktree_path.to_string_lossy().to_string();
+    let worktree_path_str = worktree_path.to_string_lossy().into_owned();
 
     // Create git worktree
     git::create_worktree(&repo.path, &branch_name, &worktree_path_str)?;
@@ -465,21 +466,7 @@ pub async fn mark_workspace_read(id: String, db: State<'_, DbPool>) -> Result<()
     Ok(())
 }
 
-fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
-    for entry in std::fs::read_dir(src).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
-
-        if src_path.is_dir() {
-            std::fs::create_dir_all(&dst_path).map_err(|e| e.to_string())?;
-            copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
-            std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
-        }
-    }
-    Ok(())
-}
+// copy_dir_recursive is reused from crate::context
 
 #[tauri::command]
 pub async fn fork_workspace(

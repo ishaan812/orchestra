@@ -70,7 +70,7 @@ fn run_gh(args: &[&str], cwd: &str) -> Result<String, String> {
         return Err(format!("gh command failed: {stderr}"));
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 async fn get_workspace_repo_path(
@@ -465,7 +465,8 @@ pub async fn generate_pr_body(
     body.push_str("## Summary\n\n");
 
     if let Some(prompt) = &task_prompt {
-        body.push_str(&format!("{}\n\n", prompt));
+        body.push_str(prompt);
+        body.push_str("\n\n");
     }
 
     body.push_str("## Changes\n\n");
@@ -515,7 +516,7 @@ pub async fn clone_repo_from_url(
     } else {
         home.join("open-conductor").join("repos").join(&repo_name)
     };
-    let clone_dir_str = clone_dir.to_string_lossy().to_string();
+    let clone_dir_str = clone_dir.to_string_lossy().into_owned();
 
     // Create parent directory
     if let Some(parent) = clone_dir.parent() {
@@ -544,13 +545,13 @@ pub async fn clone_repo_from_url(
     .map_err(|e| format!("Failed to clone: {e}"))?;
 
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
         let _ = app.emit(
             "clone:status",
             serde_json::json!({
                 "url": url,
                 "status": "failed",
-                "error": stderr.to_string(),
+                "error": &stderr,
             }),
         );
         return Err(format!("Clone failed: {stderr}"));

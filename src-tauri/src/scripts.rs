@@ -83,12 +83,15 @@ pub async fn run_setup_scripts(
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        log.push_str(&format!("=== {} ===\n", script));
+        log.push_str("=== ");
+        log.push_str(script);
+        log.push_str(" ===\n");
         if !stdout.is_empty() {
             log.push_str(&stdout);
         }
         if !stderr.is_empty() {
-            log.push_str(&format!("STDERR:\n{}", stderr));
+            log.push_str("STDERR:\n");
+            log.push_str(&stderr);
         }
         log.push('\n');
 
@@ -170,8 +173,8 @@ pub async fn run_workspace_script(
         .await
         .map_err(|e| e.to_string())?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
 
     let status = if output.status.success() {
         "completed"

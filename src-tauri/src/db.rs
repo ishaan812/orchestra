@@ -13,7 +13,7 @@ pub async fn get_db_path(app_handle: &AppHandle) -> Result<String, String> {
         .map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
     let db_path = app_dir.join("openconductor.db");
-    Ok(db_path.to_string_lossy().to_string())
+    Ok(db_path.to_string_lossy().into_owned())
 }
 
 pub async fn init_database(app_handle: &AppHandle) -> Result<SqlitePool, String> {

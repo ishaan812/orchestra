@@ -98,12 +98,12 @@ pub async fn generate_workspace_name(repo_id: &str, pool: &SqlitePool) -> Result
     // Try to find an unused base name
     let candidates: Vec<&str> = DISTRICT_NAMES
         .iter()
-        .filter(|n| !used.contains(&(**n).to_string()))
+        .filter(|n| !used.iter().any(|u| u.as_str() == **n))
         .copied()
         .collect();
 
     if let Some(name) = candidates.choose(&mut rng) {
-        return Ok((*name).to_string());
+        return Ok(name.to_string());
     }
 
     // All base names used — append numeric suffix

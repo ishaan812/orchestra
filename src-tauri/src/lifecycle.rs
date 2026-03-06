@@ -468,19 +468,15 @@ pub async fn get_lifecycle_state(
     manager: State<'_, LifecycleManager>,
 ) -> Result<TaskLifecycleState, String> {
     let states = manager.states.lock().await;
-    states
+    Ok(states
         .get(&workspace_id)
         .map(|s| s.lifecycle.clone())
-        .ok_or_else(|| {
-            // Return default state if not tracked
-            serde_json::to_string(&TaskLifecycleState {
-                task_id: workspace_id.clone(),
-                setup: PhaseState::default(),
-                run: RunPhaseState::default(),
-                teardown: PhaseState::default(),
-            })
-            .unwrap_or_default()
-        })
+        .unwrap_or_else(|| TaskLifecycleState {
+            task_id: workspace_id.clone(),
+            setup: PhaseState::default(),
+            run: RunPhaseState::default(),
+            teardown: PhaseState::default(),
+        }))
 }
 
 #[tauri::command]

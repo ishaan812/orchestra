@@ -124,7 +124,7 @@ pub fn preserve_files(
         } else if metadata.is_dir() {
             let name = src_file
                 .file_name()
-                .map(|n| n.to_string_lossy().to_string())
+                .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_default();
             if EXCLUDE_PATTERNS.contains(&name.as_str()) {
                 continue;
@@ -147,7 +147,7 @@ fn copy_dir_preserving(src: &Path, dst: &Path) -> Result<(), String> {
         let src_path = entry.path();
         let dst_path = dst.join(entry.file_name());
 
-        let name = entry.file_name().to_string_lossy().to_string();
+        let name = entry.file_name().to_string_lossy().into_owned();
         if EXCLUDE_PATTERNS.contains(&name.as_str()) {
             continue;
         }
