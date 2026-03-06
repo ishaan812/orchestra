@@ -1,7 +1,7 @@
 use crate::db::DbPool;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PrStatus {
@@ -346,4 +346,228 @@ pub async fn detect_github_enterprise() -> Result<String, String> {
     }
 
     Ok("github.com".to_string())
+}
+
+// --- GitHub Device Flow OAuth ---
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DeviceFlowResponse {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub expires_in: u64,
+    pub interval: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DeviceFlowTokenResponse {
+    pub access_token: Option<String>,
+    pub token_type: Option<String>,
+    pub scope: Option<String>,
+    pub error: Option<String>,
+    pub error_description: Option<String>,
+}
+
+/// Start GitHub Device Flow OAuth. Returns a user code and verification URL.
+#[tauri::command]
+pub async fn github_device_flow_start(
+    client_id: String,
+) -> Result<DeviceFlowResponse, String> {
+    let output = Command::new("curl")
+        .args([
+            "-s",
+            "-X", "POST",
+            "https://github.com/login/device/code",
+            "-H", "Accept: application/json",
+            "-d", &format!("client_id={}&scope=repo,read:org", client_id),
+        ])
+        .output()
+        .map_err(|e| format!("Failed to start device flow: {e}"))?;
+
+    if !output.status.success() {
+        return Err("Device flow request failed".to_string());
+    }
+
+    let body = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&body).map_err(|e| format!("Failed to parse response: {e}"))
+}
+
+/// Poll for the device flow token. Returns the token once the user has authorized.
+#[tauri::command]
+pub async fn github_device_flow_poll(
+    client_id: String,
+    device_code: String,
+) -> Result<DeviceFlowTokenResponse, String> {
+    let output = Command::new("curl")
+        .args([
+            "-s",
+            "-X", "POST",
+            "https://github.com/login/oauth/access_token",
+            "-H", "Accept: application/json",
+            "-d", &format!(
+                "client_id={}&device_code={}&grant_type=urn:ietf:params:oauth:grant-type:device_code",
+                client_id, device_code
+            ),
+        ])
+        .output()
+        .map_err(|e| format!("Failed to poll device flow: {e}"))?;
+
+    if !output.status.success() {
+        return Err("Device flow poll failed".to_string());
+    }
+
+    let body = String::from_utf8_lossy(&output.stdout);
+    serde_json::from_str(&body).map_err(|e| format!("Failed to parse response: {e}"))
+}
+
+// --- PR Body Generation ---
+
+/// Generate a PR body from the workspace diff. Returns a structured PR body
+/// with summary of changes.
+#[tauri::command]
+pub async fn generate_pr_body(
+    workspace_id: String,
+    db: State<'_, DbPool>,
+) -> Result<String, String> {
+    let (repo_path, branch) = get_workspace_repo_path(&workspace_id, &db).await?;
+
+    // Get the worktree path and target branch
+    let (worktree_path, target_branch): (String, String) = sqlx::query_as(
+        "SELECT w.worktree_path, COALESCE(w.intended_target_branch, r.default_branch, 'main')
+         FROM workspaces w JOIN repos r ON w.repo_id = r.id WHERE w.id = ?",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&db.0)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // Get diff stats
+    let stats = crate::git::get_diff_stats(&worktree_path, &target_branch)?;
+
+    // Get task prompt for context
+    let task_prompt: Option<String> =
+        sqlx::query_scalar("SELECT task_prompt FROM workspaces WHERE id = ?")
+            .bind(&workspace_id)
+            .fetch_one(&db.0)
+            .await
+            .map_err(|e| e.to_string())?;
+
+    // Build PR body
+    let mut body = String::new();
+    body.push_str("## Summary\n\n");
+
+    if let Some(prompt) = &task_prompt {
+        body.push_str(&format!("{}\n\n", prompt));
+    }
+
+    body.push_str("## Changes\n\n");
+    body.push_str(&format!(
+        "**{} files changed**, {} insertions(+), {} deletions(-)\n\n",
+        stats.files_changed, stats.insertions, stats.deletions
+    ));
+
+    for file in &stats.files {
+        let status_icon = match file.status {
+            crate::git::FileChangeStatus::Added => "+",
+            crate::git::FileChangeStatus::Deleted => "-",
+            crate::git::FileChangeStatus::Modified => "~",
+            crate::git::FileChangeStatus::Renamed => "->",
+        };
+        body.push_str(&format!(
+            "- `{}` {} (+{}, -{})\n",
+            file.path, status_icon, file.insertions, file.deletions
+        ));
+    }
+
+    Ok(body)
+}
+
+// --- Clone from URL ---
+
+/// Clone a repository from a URL and add it to Orchestra.
+#[tauri::command]
+pub async fn clone_repo_from_url(
+    url: String,
+    target_dir: Option<String>,
+    app: AppHandle,
+    db: State<'_, DbPool>,
+) -> Result<String, String> {
+    // Extract repo name from URL
+    let repo_name = url
+        .trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .unwrap_or("repo")
+        .trim_end_matches(".git")
+        .to_string();
+
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let clone_dir = if let Some(dir) = target_dir {
+        std::path::PathBuf::from(dir)
+    } else {
+        home.join("open-conductor").join("repos").join(&repo_name)
+    };
+    let clone_dir_str = clone_dir.to_string_lossy().to_string();
+
+    // Create parent directory
+    if let Some(parent) = clone_dir.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    let _ = app.emit(
+        "clone:status",
+        serde_json::json!({
+            "url": url,
+            "status": "cloning",
+            "target": clone_dir_str,
+        }),
+    );
+
+    // Clone using git
+    let output = Command::new("git")
+        .args(["clone", &url, &clone_dir_str])
+        .output()
+        .map_err(|e| format!("Failed to clone: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let _ = app.emit(
+            "clone:status",
+            serde_json::json!({
+                "url": url,
+                "status": "failed",
+                "error": stderr.to_string(),
+            }),
+        );
+        return Err(format!("Clone failed: {stderr}"));
+    }
+
+    // Detect default branch
+    let default_branch = Command::new("git")
+        .args(["symbolic-ref", "--short", "HEAD"])
+        .current_dir(&clone_dir_str)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                String::from_utf8(o.stdout)
+                    .ok()
+                    .map(|s| s.trim().to_string())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| "main".to_string());
+
+    let _ = app.emit(
+        "clone:status",
+        serde_json::json!({
+            "url": url,
+            "status": "completed",
+            "path": clone_dir_str,
+            "default_branch": default_branch,
+        }),
+    );
+
+    Ok(clone_dir_str)
 }
