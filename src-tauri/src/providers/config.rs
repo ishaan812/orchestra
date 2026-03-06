@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Defines a provider (CLI agent) that Orchestra can launch.
 /// Ported from emdash's ProviderDefinition in shared/providers/registry.ts,
 /// scoped to Claude Code and Codex only.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ProviderDefinition {
     /// Unique identifier (e.g. "claude", "codex")
     pub id: &'static str,
