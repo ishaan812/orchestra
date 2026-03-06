@@ -33,11 +33,13 @@ export interface WorkspaceGroup {
 
 interface WorkspaceStore {
   workspaces: WorkspaceGroup;
+  workspacesByRepo: Record<string, WorkspaceInfo[]>;
   activeWorkspaceId: string | null;
   openTabs: string[];
   loading: boolean;
   setActiveWorkspaceId: (id: string | null) => void;
   fetchWorkspaces: (repoId: string) => Promise<void>;
+  fetchAllWorkspaces: (repoIds: string[]) => Promise<void>;
   createWorkspace: (params: {
     repo_id: string;
     task_prompt?: string;
@@ -62,6 +64,7 @@ const emptyGroup: WorkspaceGroup = {
 
 export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   workspaces: emptyGroup,
+  workspacesByRepo: {},
   activeWorkspaceId: null,
   openTabs: [],
   loading: false,
@@ -82,7 +85,37 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       const workspaces = await invoke<WorkspaceGroup>("list_workspaces", {
         repoId,
       });
-      set({ workspaces });
+      const flat = [
+        ...workspaces.in_progress,
+        ...workspaces.in_review,
+        ...workspaces.backlog,
+        ...workspaces.done,
+      ];
+      set((state) => ({
+        workspaces,
+        workspacesByRepo: { ...state.workspacesByRepo, [repoId]: flat },
+      }));
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchAllWorkspaces: async (repoIds) => {
+    set({ loading: true });
+    try {
+      const results: Record<string, WorkspaceInfo[]> = {};
+      await Promise.all(
+        repoIds.map(async (repoId) => {
+          const group = await invoke<WorkspaceGroup>("list_workspaces", { repoId });
+          results[repoId] = [
+            ...group.in_progress,
+            ...group.in_review,
+            ...group.backlog,
+            ...group.done,
+          ];
+        })
+      );
+      set({ workspacesByRepo: results });
     } finally {
       set({ loading: false });
     }

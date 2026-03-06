@@ -24,9 +24,11 @@ function App() {
     useRepoStore();
   const {
     workspaces,
+    workspacesByRepo,
     activeWorkspaceId,
     openTabs,
     fetchWorkspaces,
+    fetchAllWorkspaces,
     createWorkspace,
     setActiveWorkspaceId,
     closeTab,
@@ -59,11 +61,19 @@ function App() {
     fetchRepos();
   }, [fetchRepos]);
 
+  // Fetch workspaces for the selected repo (for backward compat)
   useEffect(() => {
     if (selectedRepoId) {
       fetchWorkspaces(selectedRepoId);
     }
   }, [selectedRepoId, fetchWorkspaces]);
+
+  // Fetch workspaces for all repos (for sidebar project tree)
+  useEffect(() => {
+    if (repos.length > 0) {
+      fetchAllWorkspaces(repos.map((r) => r.id));
+    }
+  }, [repos, fetchAllWorkspaces]);
 
   const handleLayout = useCallback((sizes: number[]) => {
     try {
@@ -290,6 +300,7 @@ function App() {
                   onNewWorkspace={() => setShowNewWorkspace(true)}
                   onOpenSettings={() => setShowSettings(true)}
                   workspaces={workspaces}
+                  workspacesByRepo={workspacesByRepo}
                   activeWorkspaceId={activeWorkspaceId}
                   onSelectWorkspace={(id) => {
                     if (id === "") {

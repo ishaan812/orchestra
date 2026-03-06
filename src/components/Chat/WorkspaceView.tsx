@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { TerminalPanel } from "../Terminal/Terminal";
 import { Composer } from "./Composer";
+import { AgentOutputRenderer } from "../Agent/AgentOutputRenderer";
 import { useSessionStore, setupAgentEventListeners } from "../../hooks/useSession";
 
 interface WorkspaceViewProps {
@@ -21,9 +22,11 @@ export function WorkspaceView({
 }: WorkspaceViewProps) {
   const {
     sessions,
+    messages,
     agentStatus,
     createSession,
     sendMessage,
+    loadMessages,
     listWorkspaceSessions,
     updateSession,
   } = useSessionStore();
@@ -44,12 +47,21 @@ export function WorkspaceView({
       if (list.length > 0) {
         const last = list[list.length - 1];
         setActiveSessionId(last.id);
+        loadMessages(last.id);
       } else {
         setActiveSessionId(null);
       }
     });
-  }, [workspaceId, listWorkspaceSessions]);
+  }, [workspaceId, listWorkspaceSessions, loadMessages]);
 
+  // Load messages when switching active session
+  useEffect(() => {
+    if (activeSessionId && !messages[activeSessionId]) {
+      loadMessages(activeSessionId);
+    }
+  }, [activeSessionId, messages, loadMessages]);
+
+  const sessionMessages = activeSessionId ? messages[activeSessionId] ?? [] : [];
   const status = activeSessionId ? agentStatus[activeSessionId] ?? "idle" : "idle";
 
   const handleSend = useCallback(
@@ -57,7 +69,6 @@ export function WorkspaceView({
       if (activeSessionId) {
         await sendMessage(activeSessionId, content);
       } else {
-        // Create a new session with this message
         setInitializing(true);
         try {
           const session = await createSession({
@@ -94,10 +105,9 @@ export function WorkspaceView({
   );
 
   const agentLabel = agentType === "codex" ? "Codex" : "Claude Code";
-
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Agent header bar — like emdash's agent info */}
+      {/* Agent info header */}
       <div
         style={{
           padding: "var(--space-2) var(--space-4)",
@@ -106,6 +116,7 @@ export function WorkspaceView({
           alignItems: "center",
           gap: "var(--space-3)",
           flexShrink: 0,
+          backgroundColor: "var(--bg-base)",
         }}
       >
         {/* Agent badge */}
@@ -125,7 +136,12 @@ export function WorkspaceView({
           </span>
         </div>
 
-        {/* Status indicator */}
+        {/* Model + version info */}
+        <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-tertiary)" }}>
+          {model === "claude-opus-4-6" ? "Opus 4.6" : model === "claude-sonnet-4-6" ? "Sonnet 4.6" : model}
+        </span>
+
+        {/* Status */}
         {(status === "running" || initializing) && (
           <span
             style={{
@@ -152,7 +168,7 @@ export function WorkspaceView({
 
         <div style={{ flex: 1 }} />
 
-        {/* Workspace name + path */}
+        {/* Worktree path */}
         <span
           style={{
             fontSize: "var(--font-size-xs)",
@@ -161,38 +177,56 @@ export function WorkspaceView({
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            maxWidth: 300,
           }}
         >
           {worktreePath ?? workspaceName}
         </span>
       </div>
 
-      {/* Main content: terminal-first view */}
+      {/* Main content: agent output + shell terminal split */}
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <PanelGroup direction="vertical">
-          {/* Agent terminal — the main view */}
-          <Panel defaultSize={70} minSize={30}>
-            <TerminalPanel workspaceId={workspaceId} bigMode />
+        <PanelGroup direction="vertical" autoSaveId={`workspace-split-${workspaceId}`}>
+          {/* Agent output — terminal-style message renderer */}
+          <Panel defaultSize={65} minSize={20}>
+            <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+              <AgentOutputRenderer
+                messages={sessionMessages}
+                agentStatus={initializing ? "running" : status}
+              />
+            </div>
           </Panel>
 
           <PanelResizeHandle
             style={{
-              height: 1,
-              backgroundColor: "var(--border-subtle)",
+              height: 4,
+              backgroundColor: "var(--bg-surface)",
               cursor: "row-resize",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
-          />
+          >
+            <div
+              style={{
+                width: 32,
+                height: 2,
+                backgroundColor: "var(--border)",
+                borderRadius: 1,
+              }}
+            />
+          </PanelResizeHandle>
 
           {/* Shell terminal at bottom */}
-          <Panel defaultSize={30} minSize={15}>
+          <Panel defaultSize={35} minSize={10}>
             <div
               style={{
                 height: "100%",
                 display: "flex",
                 flexDirection: "column",
-                borderTop: "1px solid var(--border-subtle)",
               }}
             >
+              {/* Terminal header bar */}
               <div
                 style={{
                   display: "flex",
@@ -200,6 +234,7 @@ export function WorkspaceView({
                   padding: "var(--space-1) var(--space-3)",
                   gap: "var(--space-2)",
                   borderBottom: "1px solid var(--border-subtle)",
+                  backgroundColor: "var(--bg-surface)",
                   flexShrink: 0,
                 }}
               >
@@ -209,26 +244,30 @@ export function WorkspaceView({
                 <div style={{ flex: 1 }} />
                 <span
                   style={{
-                    fontSize: "var(--font-size-xs)",
+                    fontSize: 10,
                     color: "var(--text-tertiary)",
-                    background: "var(--bg-surface)",
+                    background: "var(--bg-elevated)",
                     padding: "1px 6px",
                     borderRadius: "var(--radius-sm)",
                     border: "1px solid var(--border-subtle)",
+                    fontWeight: 600,
+                    letterSpacing: "0.5px",
                   }}
                 >
                   WORKTREE
                 </span>
               </div>
+
+              {/* xterm.js shell */}
               <div style={{ flex: 1, overflow: "hidden" }}>
-                <TerminalPanel workspaceId={workspaceId + "-shell"} />
+                <TerminalPanel workspaceId={workspaceId} />
               </div>
             </div>
           </Panel>
         </PanelGroup>
       </div>
 
-      {/* Composer at bottom — simplified */}
+      {/* Composer at bottom */}
       <Composer
         onSend={handleSend}
         disabled={initializing || status === "running"}

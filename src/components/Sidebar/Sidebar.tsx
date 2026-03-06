@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import type { Repo } from "../../hooks/useRepos";
 import type { WorkspaceGroup, WorkspaceInfo } from "../../hooks/useWorkspaces";
 
@@ -8,6 +7,7 @@ interface SidebarProps {
   onSelectRepo: (repoId: string) => void;
   onAddRepo: () => void;
   onNewWorkspace: () => void;
+  workspacesByRepo: Record<string, WorkspaceInfo[]>;
   onOpenSettings: () => void;
   workspaces: WorkspaceGroup;
   activeWorkspaceId: string | null;
@@ -28,35 +28,14 @@ function timeAgo(dateStr: string): string {
 
 export function Sidebar({
   repos,
-  selectedRepoId,
   onSelectRepo,
   onAddRepo,
   onNewWorkspace,
   onOpenSettings,
-  workspaces,
+  workspacesByRepo,
   activeWorkspaceId,
   onSelectWorkspace,
 }: SidebarProps) {
-  const allWorkspaces = useMemo(
-    () => [
-      ...workspaces.in_progress,
-      ...workspaces.in_review,
-      ...workspaces.backlog,
-      ...workspaces.done,
-    ],
-    [workspaces]
-  );
-
-  // Group workspaces by repo
-  const workspacesByRepo = useMemo(() => {
-    const map = new Map<string, WorkspaceInfo[]>();
-    for (const ws of allWorkspaces) {
-      const list = map.get(ws.repo_id) ?? [];
-      list.push(ws);
-      map.set(ws.repo_id, list);
-    }
-    return map;
-  }, [allWorkspaces]);
 
   return (
     <div
@@ -169,8 +148,7 @@ export function Sidebar({
         )}
 
         {repos.map((repo) => {
-          const repoWorkspaces = workspacesByRepo.get(repo.id) ?? [];
-          const isSelected = repo.id === selectedRepoId;
+          const repoWorkspaces = workspacesByRepo[repo.id] ?? [];
 
           return (
             <div key={repo.id} style={{ marginBottom: "var(--space-1)" }}>
@@ -234,9 +212,8 @@ export function Sidebar({
                 </button>
               </div>
 
-              {/* Workspace items under this project */}
-              {isSelected &&
-                repoWorkspaces.map((ws) => (
+              {/* Workspace items under this project — always visible */}
+              {repoWorkspaces.map((ws) => (
                   <WorkspaceRow
                     key={ws.id}
                     workspace={ws}
