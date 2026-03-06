@@ -1,0 +1,78 @@
+.agent-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  width: 100%;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+.agent-option:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-focus);
+}
+
+.agent-option--selected {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface-hover);
+}
+
+.agent-option__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-option__name {
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-option__badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.agent-option__desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-option__status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.agent-option__status--installed {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+}
+
+.agent-option__status--missing {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ff9800;
+}

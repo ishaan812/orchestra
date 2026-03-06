@@ -1,0 +1,116 @@
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.titlebar__left,
+.titlebar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar__left {
+  flex: 1;
+  min-width: 0;
+}
+
+.titlebar__center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.titlebar__right {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.titlebar__toggle,
+.titlebar__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.titlebar__toggle:hover,
+.titlebar__btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.titlebar__toggle--active {
+  color: var(--accent-primary);
+}
+
+.titlebar__repo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titlebar__separator {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0 2px;
+}
+
+.titlebar__workspace {
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titlebar__view-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+}
+
+.titlebar__view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.titlebar__view-btn:hover {
+  color: var(--text-primary);
+}
+
+.titlebar__view-btn--active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}

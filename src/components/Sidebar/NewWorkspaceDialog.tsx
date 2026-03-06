@@ -1,17 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { AGENTS, getAgent, getAgentModels } from "../../constants/agents";
+import { AgentLogo } from "../Agents/AgentLogo";
+import { useCliAgentDetection } from "../../hooks/useCliAgentDetection";
+import "./NewWorkspaceDialog.css";
 
-const AGENT_TYPES = ["Claude Code", "Codex"] as const;
-const MODELS = [
-  "Opus 4.6",
-  "Sonnet 4.6",
-  "Haiku 4.5",
-  "GPT-5.3-Codex",
-  "GPT-5.3-Codex-Spark",
-  "GPT-5.2",
-  "GPT-5.1",
-] as const;
-
-const MODES = ["New Task", "From Branch", "From PR", "From Issue"] as const;
+const MODES = ["New Task", "From Branch", "From Issue"] as const;
 
 interface NewWorkspaceDialogProps {
   open: boolean;
@@ -33,20 +27,35 @@ export function NewWorkspaceDialog({
 }: NewWorkspaceDialogProps) {
   const [mode, setMode] = useState<(typeof MODES)[number]>("New Task");
   const [taskPrompt, setTaskPrompt] = useState("");
-  const [agentType, setAgentType] = useState<string>("Claude Code");
-  const [model, setModel] = useState<string>("Sonnet 4.6");
+  const [agentId, setAgentId] = useState("claude");
+  const [model, setModel] = useState("claude-sonnet-4-6");
   const [targetBranch, setTargetBranch] = useState(branches[0] ?? "main");
   const [loading, setLoading] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const { installedIds } = useCliAgentDetection();
 
-  if (!open) return null;
+  // Update model when agent changes
+  useEffect(() => {
+    const agent = getAgent(agentId);
+    if (agent?.defaultModel) {
+      setModel(agent.defaultModel);
+    }
+  }, [agentId]);
+
+  // Update target branch when branches change
+  useEffect(() => {
+    if (branches.length > 0 && !branches.includes(targetBranch)) {
+      setTargetBranch(branches[0]);
+    }
+  }, [branches]);
 
   const handleSubmit = async () => {
     setLoading(true);
     try {
       await onSubmit({
         task_prompt: taskPrompt || undefined,
-        agent_type: agentType.toLowerCase().replace(" ", "-"),
-        model: model.toLowerCase().replace(/\s+/g, "-"),
+        agent_type: agentId,
+        model,
         target_branch: targetBranch,
       });
       setTaskPrompt("");
@@ -56,266 +65,186 @@ export function NewWorkspaceDialog({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      handleSubmit();
+    }
+  };
+
+  const models = getAgentModels(agentId);
+
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "rgba(0,0,0,0.5)",
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        style={{
-          background: "var(--bg-elevated)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-lg)",
-          boxShadow: "var(--shadow-lg)",
-          width: 480,
-          maxHeight: "80vh",
-          overflow: "auto",
-          padding: "var(--space-6)",
-        }}
-      >
-        <h2
-          style={{
-            fontSize: "var(--font-size-lg)",
-            fontWeight: 600,
-            marginBottom: "var(--space-4)",
-          }}
-        >
-          New Workspace
-        </h2>
+    <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="nwd-overlay" />
+        <Dialog.Content className="nwd-content" onKeyDown={handleKeyDown}>
+          <Dialog.Title className="nwd-title">New Workspace</Dialog.Title>
 
-        {/* Mode tabs */}
-        <div
-          style={{
-            display: "flex",
-            gap: "var(--space-1)",
-            marginBottom: "var(--space-4)",
-            borderBottom: "1px solid var(--border-subtle)",
-            paddingBottom: "var(--space-2)",
-          }}
-        >
-          {MODES.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              style={{
-                padding: "var(--space-1) var(--space-3)",
-                background: mode === m ? "var(--accent-bg)" : "transparent",
-                border: "none",
-                borderRadius: "var(--radius-sm)",
-                color: mode === m ? "var(--accent-primary)" : "var(--text-secondary)",
-                fontSize: "var(--font-size-sm)",
-                cursor: "pointer",
-                fontWeight: mode === m ? 600 : 400,
-              }}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-
-        {mode === "New Task" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "var(--font-size-sm)",
-                  color: "var(--text-secondary)",
-                  marginBottom: "var(--space-1)",
-                }}
+          {/* Mode tabs */}
+          <div className="nwd-tabs">
+            {MODES.map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`nwd-tab ${mode === m ? "nwd-tab--active" : ""}`}
               >
-                Task Description
-              </label>
-              <textarea
-                value={taskPrompt}
-                onChange={(e) => setTaskPrompt(e.target.value)}
-                placeholder="Describe what the agent should work on..."
-                rows={3}
-                style={{
-                  width: "100%",
-                  padding: "var(--space-2) var(--space-3)",
-                  background: "var(--bg-input)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  color: "var(--text-primary)",
-                  fontSize: "var(--font-size-base)",
-                  fontFamily: "var(--font-ui)",
-                  resize: "vertical",
-                }}
-              />
-            </div>
+                {m}
+              </button>
+            ))}
+          </div>
 
-            <div style={{ display: "flex", gap: "var(--space-3)" }}>
-              <div style={{ flex: 1 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "var(--font-size-sm)",
-                    color: "var(--text-secondary)",
-                    marginBottom: "var(--space-1)",
-                  }}
-                >
-                  Agent
-                </label>
-                <select
-                  value={agentType}
-                  onChange={(e) => setAgentType(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "var(--space-2) var(--space-3)",
-                    background: "var(--bg-input)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
-                    color: "var(--text-primary)",
-                    fontSize: "var(--font-size-sm)",
-                  }}
-                >
-                  {AGENT_TYPES.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
+          {mode === "New Task" && (
+            <div className="nwd-form">
+              {/* Task Description */}
+              <div className="nwd-field">
+                <label className="nwd-label">Task Description</label>
+                <textarea
+                  value={taskPrompt}
+                  onChange={(e) => setTaskPrompt(e.target.value)}
+                  placeholder="Describe what the agent should work on..."
+                  rows={3}
+                  className="nwd-textarea"
+                  autoFocus
+                />
+                <span className="nwd-hint">Cmd+Enter to create</span>
               </div>
-              <div style={{ flex: 1 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "var(--font-size-sm)",
-                    color: "var(--text-secondary)",
-                    marginBottom: "var(--space-1)",
-                  }}
-                >
-                  Model
-                </label>
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "var(--space-2) var(--space-3)",
-                    background: "var(--bg-input)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
-                    color: "var(--text-primary)",
-                    fontSize: "var(--font-size-sm)",
-                  }}
-                >
-                  {MODELS.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "var(--font-size-sm)",
-                  color: "var(--text-secondary)",
-                  marginBottom: "var(--space-1)",
-                }}
+              {/* Agent Selection */}
+              <div className="nwd-field">
+                <label className="nwd-label">Agent</label>
+                <div className="nwd-agent-grid">
+                  {AGENTS.map((agent) => (
+                    <button
+                      key={agent.id}
+                      className={`nwd-agent-btn ${
+                        agentId === agent.id ? "nwd-agent-btn--selected" : ""
+                      }`}
+                      onClick={() => setAgentId(agent.id)}
+                      type="button"
+                    >
+                      <AgentLogo agentId={agent.id} size={24} />
+                      <div className="nwd-agent-btn__info">
+                        <span className="nwd-agent-btn__name">{agent.name}</span>
+                        {!installedIds.includes(agent.id) && (
+                          <span className="nwd-agent-btn__warning">Not installed</span>
+                        )}
+                      </div>
+                      {agent.terminalOnly && (
+                        <span className="nwd-badge">Terminal</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Model & Branch */}
+              <div className="nwd-row">
+                <div className="nwd-field" style={{ flex: 1 }}>
+                  <label className="nwd-label">Model</label>
+                  <select
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    className="nwd-select"
+                  >
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="nwd-field" style={{ flex: 1 }}>
+                  <label className="nwd-label">Target Branch</label>
+                  <select
+                    value={targetBranch}
+                    onChange={(e) => setTargetBranch(e.target.value)}
+                    className="nwd-select"
+                  >
+                    {branches.map((b) => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))}
+                    {branches.length === 0 && <option value="main">main</option>}
+                  </select>
+                </div>
+              </div>
+
+              {/* Advanced Settings Toggle */}
+              <button
+                className="nwd-advanced-toggle"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                type="button"
               >
-                Target Branch
-              </label>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  style={{
+                    transform: showAdvanced ? "rotate(90deg)" : "rotate(0)",
+                    transition: "transform 0.15s",
+                  }}
+                >
+                  <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                </svg>
+                Advanced Settings
+              </button>
+
+              {showAdvanced && (
+                <div className="nwd-advanced">
+                  <p className="nwd-advanced-note">
+                    Additional settings like auto-approve mode, custom instructions,
+                    and issue linking will appear here.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {mode === "From Branch" && (
+            <div className="nwd-placeholder">
+              <p>Select an existing branch to create a workspace from.</p>
               <select
                 value={targetBranch}
                 onChange={(e) => setTargetBranch(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "var(--space-2) var(--space-3)",
-                  background: "var(--bg-input)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  color: "var(--text-primary)",
-                  fontSize: "var(--font-size-sm)",
-                }}
+                className="nwd-select"
+                style={{ width: "100%" }}
               >
                 {branches.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
+                  <option key={b} value={b}>{b}</option>
                 ))}
-                {branches.length === 0 && <option value="main">main</option>}
               </select>
             </div>
-          </div>
-        )}
+          )}
 
-        {mode === "From Branch" && (
-          <div style={{ color: "var(--text-tertiary)", fontSize: "var(--font-size-sm)", padding: "var(--space-4)" }}>
-            Select a branch to create a workspace from. (Coming soon)
-          </div>
-        )}
+          {mode === "From Issue" && (
+            <div className="nwd-placeholder">
+              <p>Link a GitHub or Linear issue to auto-generate a task.</p>
+              <div className="nwd-issue-search">
+                <input
+                  type="text"
+                  placeholder="Search issues..."
+                  className="nwd-input"
+                />
+              </div>
+            </div>
+          )}
 
-        {mode === "From PR" && (
-          <div style={{ color: "var(--text-tertiary)", fontSize: "var(--font-size-sm)", padding: "var(--space-4)" }}>
-            Enter a PR number to create a workspace from. (Coming soon)
+          {/* Actions */}
+          <div className="nwd-actions">
+            <Dialog.Close asChild>
+              <button className="nwd-btn nwd-btn--secondary">Cancel</button>
+            </Dialog.Close>
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="nwd-btn nwd-btn--primary"
+            >
+              {loading ? "Creating..." : "Create Workspace"}
+            </button>
           </div>
-        )}
-
-        {mode === "From Issue" && (
-          <div style={{ color: "var(--text-tertiary)", fontSize: "var(--font-size-sm)", padding: "var(--space-4)" }}>
-            Link a GitHub or Linear issue. (Coming soon)
-          </div>
-        )}
-
-        {/* Actions */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: "var(--space-2)",
-            marginTop: "var(--space-4)",
-            paddingTop: "var(--space-4)",
-            borderTop: "1px solid var(--border-subtle)",
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              padding: "var(--space-2) var(--space-4)",
-              background: "transparent",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-md)",
-              color: "var(--text-secondary)",
-              fontSize: "var(--font-size-sm)",
-              cursor: "pointer",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            style={{
-              padding: "var(--space-2) var(--space-4)",
-              background: loading ? "var(--accent-muted)" : "var(--accent-primary)",
-              border: "none",
-              borderRadius: "var(--radius-md)",
-              color: "var(--bg-base)",
-              fontSize: "var(--font-size-sm)",
-              fontWeight: 600,
-              cursor: loading ? "wait" : "pointer",
-            }}
-          >
-            {loading ? "Creating..." : "Create Workspace"}
-          </button>
-        </div>
-      </div>
-    </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
