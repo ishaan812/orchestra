@@ -109,3 +109,80 @@ pub async fn test_ssh_connection(info: &SshConnectionInfo) -> SshTestResult {
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_info(host: &str, port: i64, key: Option<&str>) -> SshConnectionInfo {
+        SshConnectionInfo {
+            id: "test-id".to_string(),
+            name: "Test".to_string(),
+            host: host.to_string(),
+            port,
+            username: "testuser".to_string(),
+            auth_type: "key".to_string(),
+            private_key_path: key.map(|s| s.to_string()),
+            use_agent: false,
+            last_connected_at: None,
+        }
+    }
+
+    #[test]
+    fn test_ssh_connection_row_to_info_use_agent_true() {
+        let row = SshConnectionRow {
+            id: "1".to_string(),
+            name: "srv".to_string(),
+            host: "h".to_string(),
+            port: 22,
+            username: "u".to_string(),
+            auth_type: "key".to_string(),
+            private_key_path: None,
+            use_agent: 1,
+            last_connected_at: None,
+        };
+        let info = SshConnectionInfo::from(row);
+        assert!(info.use_agent);
+    }
+
+    #[test]
+    fn test_ssh_connection_row_to_info_use_agent_false() {
+        let row = SshConnectionRow {
+            id: "1".to_string(),
+            name: "srv".to_string(),
+            host: "h".to_string(),
+            port: 22,
+            username: "u".to_string(),
+            auth_type: "key".to_string(),
+            private_key_path: Some("/key".to_string()),
+            use_agent: 0,
+            last_connected_at: Some("2024-01-01".to_string()),
+        };
+        let info = SshConnectionInfo::from(row);
+        assert!(!info.use_agent);
+        assert_eq!(info.private_key_path, Some("/key".to_string()));
+        assert_eq!(info.last_connected_at, Some("2024-01-01".to_string()));
+    }
+
+    #[test]
+    fn test_ssh_connection_info_serialization() {
+        let info = make_info("example.com", 22, Some("/home/user/.ssh/id_rsa"));
+        let json = serde_json::to_string(&info).unwrap();
+        let deserialized: SshConnectionInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.host, "example.com");
+        assert_eq!(deserialized.port, 22);
+        assert_eq!(deserialized.private_key_path, Some("/home/user/.ssh/id_rsa".to_string()));
+    }
+
+    #[test]
+    fn test_ssh_test_result_serialization() {
+        let result = SshTestResult {
+            success: true,
+            message: "Connection successful".to_string(),
+            latency_ms: Some(42),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"success\":true"));
+        assert!(json.contains("\"latency_ms\":42"));
+    }
+}

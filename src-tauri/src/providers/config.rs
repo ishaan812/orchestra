@@ -77,3 +77,70 @@ impl ProviderDefinition {
         PROVIDERS.iter().find(|p| p.id == id)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_providers_has_claude_and_codex() {
+        assert_eq!(PROVIDERS.len(), 2);
+        assert_eq!(PROVIDERS[0].id, "claude");
+        assert_eq!(PROVIDERS[1].id, "codex");
+    }
+
+    #[test]
+    fn test_find_claude() {
+        let p = ProviderDefinition::find("claude").expect("claude not found");
+        assert_eq!(p.name, "Claude Code");
+        assert_eq!(p.cli, "claude");
+        assert!(!p.terminal_only);
+        assert!(!p.use_keystroke_injection);
+        assert!(p.resume_flag.is_some());
+        assert!(p.session_id_flag.is_some());
+    }
+
+    #[test]
+    fn test_find_codex() {
+        let p = ProviderDefinition::find("codex").expect("codex not found");
+        assert_eq!(p.name, "Codex");
+        assert_eq!(p.cli, "codex");
+        assert!(p.terminal_only);
+        assert!(p.use_keystroke_injection);
+        assert!(p.resume_flag.is_none());
+        assert!(p.session_id_flag.is_none());
+    }
+
+    #[test]
+    fn test_find_unknown_returns_none() {
+        assert!(ProviderDefinition::find("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_provider_ids_are_unique() {
+        let mut ids: Vec<&str> = PROVIDERS.iter().map(|p| p.id).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), PROVIDERS.len(), "Provider IDs must be unique");
+    }
+
+    #[test]
+    fn test_each_provider_has_version_args() {
+        for p in PROVIDERS {
+            assert!(!p.version_args.is_empty(), "Provider {} must have version_args", p.id);
+        }
+    }
+
+    #[test]
+    fn test_claude_default_args_include_json_output() {
+        let p = ProviderDefinition::find("claude").unwrap();
+        assert!(p.default_args.contains(&"stream-json"));
+        assert!(p.default_args.contains(&"--output-format"));
+    }
+
+    #[test]
+    fn test_codex_auto_approve_flag() {
+        let p = ProviderDefinition::find("codex").unwrap();
+        assert_eq!(p.auto_approve_flag, Some("--full-auto"));
+    }
+}
