@@ -76,7 +76,7 @@ export function MergeButton({ workspaceId, onMerged }: MergeButtonProps) {
   const canMerge = !hasConflicts && !merging && !checking;
 
   if (showPostMerge) {
-    return <PostMergeDialog onClose={() => setShowPostMerge(false)} />;
+    return <PostMergeDialog workspaceId={workspaceId} onClose={() => setShowPostMerge(false)} />;
   }
 
   return (
@@ -227,7 +227,7 @@ function CheckItem({
   );
 }
 
-function PostMergeDialog({ onClose }: { onClose: () => void }) {
+function PostMergeDialog({ workspaceId, onClose }: { workspaceId: string; onClose: () => void }) {
   return (
     <div style={{ padding: "var(--space-4)" }}>
       <div
@@ -254,24 +254,31 @@ function PostMergeDialog({ onClose }: { onClose: () => void }) {
         <PostMergeOption
           label="Continue on new branch"
           description="Fork this workspace and keep working"
-          onClick={() => {
-            // TODO: fork workspace
+          onClick={async () => {
+            try {
+              await invoke("fork_workspace", { id: workspaceId });
+            } catch (e) {
+              console.error("Failed to fork workspace:", e);
+            }
             onClose();
           }}
         />
         <PostMergeOption
           label="Archive workspace"
           description="Clean up and archive this workspace"
-          onClick={() => {
-            // TODO: archive workspace
+          onClick={async () => {
+            try {
+              await invoke("archive_workspace", { id: workspaceId });
+            } catch (e) {
+              console.error("Failed to archive workspace:", e);
+            }
             onClose();
           }}
         />
         <PostMergeOption
-          label="Update memory"
-          description="Have the agent review feedback and update memory"
+          label="Close"
+          description="Keep this workspace as-is"
           onClick={() => {
-            // TODO: spawn agent with memory update prompt
             onClose();
           }}
         />

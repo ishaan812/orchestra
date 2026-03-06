@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { FileTree } from "./FileTree";
 import { DiffViewer } from "./DiffViewer";
 import { TerminalPanel } from "../Terminal/Terminal";
 import { NotesEditor } from "../Notes/NotesEditor";
 import { ChecksTab } from "../Checks/ChecksTab";
 import { ReviewButton } from "../Checks/ReviewButton";
+import { FileTree as ExplorerFileTree } from "../FileExplorer/FileTree";
 
 interface RightPanelProps {
   workspaceId: string | null;
@@ -110,8 +112,11 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
             </div>
           )
         )}
-        {activeTab === "files" && (
-          <PlaceholderTab label="All Files" description="Browse workspace files" />
+        {activeTab === "files" && workspaceId && (
+          <AllFilesTab workspaceId={workspaceId} />
+        )}
+        {activeTab === "files" && !workspaceId && (
+          <PlaceholderTab label="All Files" description="Select a workspace" />
         )}
         {activeTab === "checks" && workspaceId && (
           <ChecksTab workspaceId={workspaceId} />
@@ -135,6 +140,71 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
           <PlaceholderTab label="Changes" description="Select a workspace to view changes" />
         )}
       </div>
+    </div>
+  );
+}
+
+function AllFilesTab({ workspaceId }: { workspaceId: string }) {
+  const [files, setFiles] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+
+  const loadFiles = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await invoke<string[]>("list_workspace_files", { workspaceId });
+      setFiles(result);
+    } catch {
+      setFiles([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    loadFiles();
+  }, [loadFiles]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: "var(--space-4)", color: "var(--text-tertiary)", fontSize: "var(--font-size-sm)" }}>
+        Loading files...
+      </div>
+    );
+  }
+
+  if (selectedFile) {
+    return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+        <button
+          onClick={() => setSelectedFile(null)}
+          style={{
+            padding: "var(--space-1) var(--space-3)",
+            background: "none",
+            border: "none",
+            borderBottom: "1px solid var(--border-subtle)",
+            color: "var(--accent-primary)",
+            fontSize: "var(--font-size-xs)",
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          ← Back to file list
+        </button>
+        <div style={{ flex: 1, overflow: "auto" }}>
+          <DiffViewer workspaceId={workspaceId} filePath={selectedFile} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ overflow: "auto", height: "100%" }}>
+      <ExplorerFileTree
+        files={files}
+        onFileSelect={setSelectedFile}
+        selectedFile={selectedFile ?? undefined}
+      />
     </div>
   );
 }
