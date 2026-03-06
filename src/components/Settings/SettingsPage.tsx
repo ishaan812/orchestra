@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore } from "../../hooks/useSettings";
 import { EnvSettings } from "./EnvSettings";
+import { SshSettingsCard } from "../SSH/SshSettingsCard";
 
 interface SettingsPageProps {
   onClose: () => void;
   selectedRepoId: string | null;
 }
 
-type SectionId = "agents" | "chat" | "appearance" | "git" | "env" | "repo" | "integrations" | "github" | "terminal" | "about";
+type SectionId = "agents" | "chat" | "appearance" | "git" | "env" | "repo" | "integrations" | "github" | "terminal" | "ssh" | "about";
 
 const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "agents", label: "Agents" },
@@ -20,6 +21,7 @@ const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "repo", label: "Repository" },
   { id: "github", label: "GitHub" },
   { id: "integrations", label: "Integrations" },
+  { id: "ssh", label: "SSH" },
   { id: "about", label: "About" },
 ];
 
@@ -143,6 +145,7 @@ export function SettingsPage({ onClose, selectedRepoId }: SettingsPageProps) {
           {activeSection === "github" && (
             <GitHubSettings settings={settings} onChange={handleChange} />
           )}
+          {activeSection === "ssh" && <SshSettingsCard />}
           {activeSection === "integrations" && (
             <IntegrationSettings
               settings={settings}

@@ -19,6 +19,7 @@ mod review;
 mod scripts;
 mod session;
 mod settings;
+mod ssh;
 mod spotlight;
 mod terminal;
 mod todos;
@@ -148,6 +149,10 @@ pub fn run() {
             lifecycle::run_lifecycle_teardown,
             lifecycle::get_lifecycle_state,
             lifecycle::get_lifecycle_logs,
+            ssh::ssh_add_connection,
+            ssh::ssh_list_connections,
+            ssh::ssh_remove_connection,
+            ssh::ssh_test_connection,
         ])
         .manage(session::SessionManager::default())
         .manage(terminal::TerminalManager::default())
