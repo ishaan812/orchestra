@@ -131,7 +131,6 @@ function App() {
     [workspaces]
   );
 
-  // P8-05: Navigate to next unread workspace
   const navigateToNextUnread = useCallback(() => {
     const unread = allWorkspaces.find((ws) => ws.unread && ws.id !== activeWorkspaceId);
     if (unread) {
@@ -145,7 +144,6 @@ function App() {
     setRightCollapsed(!bothCollapsed);
   }, [leftCollapsed, rightCollapsed]);
 
-  // Centralized keyboard shortcuts
   const shortcuts = useMemo<ShortcutDef[]>(
     () => [
       {
@@ -248,10 +246,9 @@ function App() {
     [openTabs, allWorkspaces]
   );
 
-  // Unread count for sidebar badge (P8-05)
-  const unreadCount = useMemo(
-    () => allWorkspaces.filter((ws) => ws.unread).length,
-    [allWorkspaces]
+  const activeWs = useMemo(
+    () => allWorkspaces.find((w) => w.id === activeWorkspaceId),
+    [allWorkspaces, activeWorkspaceId]
   );
 
   return (
@@ -263,6 +260,9 @@ function App() {
         onClose={closeTab}
         onHome={() => setActiveWorkspaceId(null)}
         isHomeActive={activeWorkspaceId === null}
+        onToggleLeftSidebar={() => setLeftCollapsed((c) => !c)}
+        onToggleRightSidebar={() => setRightCollapsed((c) => !c)}
+        onSettings={() => setShowSettings(true)}
       />
 
       <div style={{ flex: 1, overflow: "hidden" }}>
@@ -274,9 +274,9 @@ function App() {
           {!leftCollapsed && (
             <>
               <Panel
-                defaultSize={defaultLayout?.[0] ?? 20}
-                minSize={15}
-                maxSize={30}
+                defaultSize={defaultLayout?.[0] ?? 18}
+                minSize={14}
+                maxSize={28}
                 style={{
                   backgroundColor: "var(--bg-surface)",
                   borderRight: "1px solid var(--border-subtle)",
@@ -291,8 +291,13 @@ function App() {
                   onOpenSettings={() => setShowSettings(true)}
                   workspaces={workspaces}
                   activeWorkspaceId={activeWorkspaceId}
-                  onSelectWorkspace={setActiveWorkspaceId}
-                  unreadCount={unreadCount}
+                  onSelectWorkspace={(id) => {
+                    if (id === "") {
+                      setActiveWorkspaceId(null);
+                    } else {
+                      setActiveWorkspaceId(id);
+                    }
+                  }}
                 />
               </Panel>
               <PanelResizeHandle
@@ -306,7 +311,7 @@ function App() {
           )}
 
           <Panel
-            defaultSize={defaultLayout?.[1] ?? 55}
+            defaultSize={defaultLayout?.[1] ?? 57}
             minSize={30}
             style={{ backgroundColor: "var(--bg-base)" }}
           >
@@ -315,43 +320,20 @@ function App() {
                 onClose={() => setShowSettings(false)}
                 selectedRepoId={selectedRepoId}
               />
-            ) : activeWorkspaceId ? (
+            ) : activeWorkspaceId && activeWs ? (
               <WorkspaceView
                 workspaceId={activeWorkspaceId}
-                workspaceName={
-                  allWorkspaces.find((w) => w.id === activeWorkspaceId)?.name ?? "Workspace"
-                }
+                workspaceName={activeWs.name}
+                agentType={activeWs.agent_type ?? undefined}
+                model={activeWs.model ?? undefined}
+                worktreePath={activeWs.worktree_path}
               />
             ) : (
-              <div
-                style={{
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <div style={{ textAlign: "center" }}>
-                  <span
-                    style={{
-                      color: "var(--text-tertiary)",
-                      fontSize: "var(--font-size-lg)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Orchestra
-                  </span>
-                  <div
-                    style={{
-                      color: "var(--text-tertiary)",
-                      fontSize: "var(--font-size-sm)",
-                      marginTop: "var(--space-2)",
-                    }}
-                  >
-                    Add a repo and create a workspace to get started
-                  </div>
-                </div>
-              </div>
+              <HomeView
+                onNewWorkspace={() => setShowNewWorkspace(true)}
+                hasRepos={repos.length > 0}
+                onAddRepo={handleAddRepo}
+              />
             )}
           </Panel>
 
@@ -366,7 +348,7 @@ function App() {
               />
               <Panel
                 defaultSize={defaultLayout?.[2] ?? 25}
-                minSize={20}
+                minSize={18}
                 maxSize={40}
                 style={{
                   backgroundColor: "var(--bg-surface)",
@@ -463,6 +445,87 @@ function App() {
         open={showShortcutsHelp}
         onClose={() => setShowShortcutsHelp(false)}
       />
+    </div>
+  );
+}
+
+function HomeView({
+  onNewWorkspace,
+  hasRepos,
+  onAddRepo,
+}: {
+  onNewWorkspace: () => void;
+  hasRepos: boolean;
+  onAddRepo: () => void;
+}) {
+  return (
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div style={{ textAlign: "center", maxWidth: 400 }}>
+        <div
+          style={{
+            fontSize: 32,
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            marginBottom: "var(--space-2)",
+            letterSpacing: "-0.5px",
+          }}
+        >
+          Orchestra
+        </div>
+        <div
+          style={{
+            color: "var(--text-tertiary)",
+            fontSize: "var(--font-size-sm)",
+            marginBottom: "var(--space-6)",
+            lineHeight: 1.5,
+          }}
+        >
+          Multi-agent development environment
+        </div>
+
+        <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "center" }}>
+          {!hasRepos ? (
+            <button
+              onClick={onAddRepo}
+              style={{
+                padding: "var(--space-2) var(--space-5)",
+                background: "var(--accent-primary)",
+                border: "none",
+                borderRadius: "var(--radius-md)",
+                color: "var(--bg-base)",
+                fontSize: "var(--font-size-sm)",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Add a Project
+            </button>
+          ) : (
+            <button
+              onClick={onNewWorkspace}
+              style={{
+                padding: "var(--space-2) var(--space-5)",
+                background: "var(--accent-primary)",
+                border: "none",
+                borderRadius: "var(--radius-md)",
+                color: "var(--bg-base)",
+                fontSize: "var(--font-size-sm)",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              New Workspace
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

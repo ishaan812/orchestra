@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FileTree } from "./FileTree";
 import { DiffViewer } from "./DiffViewer";
-import { TerminalPanel } from "../Terminal/Terminal";
 import { NotesEditor } from "../Notes/NotesEditor";
 import { ChecksTab } from "../Checks/ChecksTab";
-import { ReviewButton } from "../Checks/ReviewButton";
+import { PRCreation } from "./PRCreation";
 import { FileTree as ExplorerFileTree } from "../FileExplorer/FileTree";
 
 interface RightPanelProps {
@@ -13,60 +12,58 @@ interface RightPanelProps {
   onCollapse: () => void;
 }
 
-type TabId = "changes" | "files" | "checks" | "notes" | "terminal";
-
-const TABS: { id: TabId; label: string }[] = [
-  { id: "changes", label: "Changes" },
-  { id: "files", label: "All Files" },
-  { id: "checks", label: "Checks" },
-  { id: "notes", label: "Notes" },
-  { id: "terminal", label: "Terminal" },
-];
+type TabId = "changes" | "files" | "checks" | "notes";
 
 export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>("changes");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [showPRCreate, setShowPRCreate] = useState(false);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Tab bar */}
+      {/* Header with "Changes" title and Create PR button — like emdash */}
       <div
         style={{
           display: "flex",
-          borderBottom: "1px solid var(--border-subtle)",
-          padding: "0 var(--space-2)",
           alignItems: "center",
+          padding: "var(--space-2) var(--space-3)",
+          borderBottom: "1px solid var(--border-subtle)",
+          gap: "var(--space-2)",
         }}
       >
-        {TABS.map((tab) => (
+        <span
+          style={{
+            fontSize: "var(--font-size-sm)",
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            flex: 1,
+          }}
+        >
+          {activeTab === "changes" ? "Changes" : activeTab === "files" ? "Files" : activeTab === "checks" ? "Checks" : "Notes"}
+        </span>
+
+        {workspaceId && activeTab === "changes" && (
           <button
-            key={tab.id}
-            onClick={() => {
-              setActiveTab(tab.id);
-              setSelectedFile(null);
-            }}
+            onClick={() => setShowPRCreate(!showPRCreate)}
             style={{
-              padding: "var(--space-2) var(--space-3)",
-              background: "none",
+              padding: "var(--space-1) var(--space-3)",
+              background: "var(--accent-primary)",
               border: "none",
-              borderBottom:
-                activeTab === tab.id
-                  ? "2px solid var(--accent-primary)"
-                  : "2px solid transparent",
-              color:
-                activeTab === tab.id
-                  ? "var(--text-primary)"
-                  : "var(--text-tertiary)",
+              borderRadius: "var(--radius-md)",
+              color: "var(--bg-base)",
               fontSize: "var(--font-size-xs)",
+              fontWeight: 600,
               cursor: "pointer",
-              transition: "color 150ms ease",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-1)",
             }}
           >
-            {tab.label}
+            Create PR
+            <span style={{ fontSize: 10 }}>▾</span>
           </button>
-        ))}
-        <div style={{ flex: 1 }} />
-        {workspaceId && <ReviewButton workspaceId={workspaceId} />}
+        )}
+
         <button
           onClick={onCollapse}
           style={{
@@ -81,6 +78,57 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
           ✕
         </button>
       </div>
+
+      {/* Tab navigation — subtle, below the header */}
+      <div
+        style={{
+          display: "flex",
+          borderBottom: "1px solid var(--border-subtle)",
+          padding: "0 var(--space-2)",
+        }}
+      >
+        {(["changes", "files", "checks", "notes"] as TabId[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => {
+              setActiveTab(tab);
+              setSelectedFile(null);
+              setShowPRCreate(false);
+            }}
+            style={{
+              padding: "var(--space-2) var(--space-3)",
+              background: "none",
+              border: "none",
+              borderBottom:
+                activeTab === tab
+                  ? "2px solid var(--accent-primary)"
+                  : "2px solid transparent",
+              color:
+                activeTab === tab
+                  ? "var(--text-primary)"
+                  : "var(--text-tertiary)",
+              fontSize: "var(--font-size-xs)",
+              cursor: "pointer",
+              textTransform: "capitalize",
+            }}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* PR Creation dropdown */}
+      {showPRCreate && workspaceId && (
+        <div
+          style={{
+            borderBottom: "1px solid var(--border-subtle)",
+            padding: "var(--space-3)",
+            backgroundColor: "var(--bg-elevated)",
+          }}
+        >
+          <PRCreation workspaceId={workspaceId} taskPrompt={null} existingPrTitle={null} />
+        </div>
+      )}
 
       {/* Tab content */}
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -100,7 +148,7 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
                   textAlign: "left",
                 }}
               >
-                ← Back to file list
+                ← Back
               </button>
               <div style={{ flex: 1, overflow: "auto" }}>
                 <DiffViewer workspaceId={workspaceId} filePath={selectedFile} />
@@ -112,32 +160,33 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
             </div>
           )
         )}
+
         {activeTab === "files" && workspaceId && (
           <AllFilesTab workspaceId={workspaceId} />
         )}
-        {activeTab === "files" && !workspaceId && (
-          <PlaceholderTab label="All Files" description="Select a workspace" />
-        )}
+
         {activeTab === "checks" && workspaceId && (
           <ChecksTab workspaceId={workspaceId} />
         )}
-        {activeTab === "checks" && !workspaceId && (
-          <PlaceholderTab label="Checks" description="Select a workspace" />
-        )}
+
         {activeTab === "notes" && workspaceId && (
           <NotesEditor workspaceId={workspaceId} />
         )}
-        {activeTab === "notes" && !workspaceId && (
-          <PlaceholderTab label="Notes" description="Select a workspace" />
-        )}
-        {activeTab === "terminal" && workspaceId && (
-          <TerminalPanel workspaceId={workspaceId} />
-        )}
-        {activeTab === "terminal" && !workspaceId && (
-          <PlaceholderTab label="Terminal" description="Select a workspace" />
-        )}
-        {activeTab === "changes" && !workspaceId && (
-          <PlaceholderTab label="Changes" description="Select a workspace to view changes" />
+
+        {!workspaceId && (
+          <div
+            style={{
+              padding: "var(--space-6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "var(--text-tertiary)",
+              fontSize: "var(--font-size-sm)",
+            }}
+          >
+            Select a workspace
+          </div>
         )}
       </div>
     </div>
@@ -147,7 +196,6 @@ export function RightPanel({ workspaceId, onCollapse }: RightPanelProps) {
 function AllFilesTab({ workspaceId }: { workspaceId: string }) {
   const [files, setFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   const loadFiles = useCallback(async () => {
     setLoading(true);
@@ -168,32 +216,7 @@ function AllFilesTab({ workspaceId }: { workspaceId: string }) {
   if (loading) {
     return (
       <div style={{ padding: "var(--space-4)", color: "var(--text-tertiary)", fontSize: "var(--font-size-sm)" }}>
-        Loading files...
-      </div>
-    );
-  }
-
-  if (selectedFile) {
-    return (
-      <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-        <button
-          onClick={() => setSelectedFile(null)}
-          style={{
-            padding: "var(--space-1) var(--space-3)",
-            background: "none",
-            border: "none",
-            borderBottom: "1px solid var(--border-subtle)",
-            color: "var(--accent-primary)",
-            fontSize: "var(--font-size-xs)",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
-        >
-          ← Back to file list
-        </button>
-        <div style={{ flex: 1, overflow: "auto" }}>
-          <DiffViewer workspaceId={workspaceId} filePath={selectedFile} />
-        </div>
+        Loading...
       </div>
     );
   }
@@ -202,32 +225,9 @@ function AllFilesTab({ workspaceId }: { workspaceId: string }) {
     <div style={{ overflow: "auto", height: "100%" }}>
       <ExplorerFileTree
         files={files}
-        onFileSelect={setSelectedFile}
-        selectedFile={selectedFile ?? undefined}
+        onFileSelect={() => {}}
+        selectedFile={undefined}
       />
-    </div>
-  );
-}
-
-function PlaceholderTab({ label, description }: { label: string; description: string }) {
-  return (
-    <div
-      style={{
-        padding: "var(--space-6)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100%",
-        gap: "var(--space-2)",
-      }}
-    >
-      <span style={{ color: "var(--text-tertiary)", fontSize: "var(--font-size-sm)" }}>
-        {label}
-      </span>
-      <span style={{ color: "var(--text-tertiary)", fontSize: "var(--font-size-xs)" }}>
-        {description}
-      </span>
     </div>
   );
 }

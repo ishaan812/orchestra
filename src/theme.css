@@ -123,3 +123,9 @@ body {
 button, a, input, select, textarea {
   transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
 }
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
