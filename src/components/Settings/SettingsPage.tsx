@@ -8,14 +8,17 @@ interface SettingsPageProps {
   selectedRepoId: string | null;
 }
 
-type SectionId = "chat" | "appearance" | "git" | "env" | "repo" | "integrations" | "about";
+type SectionId = "agents" | "chat" | "appearance" | "git" | "env" | "repo" | "integrations" | "github" | "terminal" | "about";
 
 const SECTIONS: { id: SectionId; label: string }[] = [
+  { id: "agents", label: "Agents" },
   { id: "chat", label: "Chat" },
   { id: "appearance", label: "Appearance" },
   { id: "git", label: "Git" },
+  { id: "terminal", label: "Terminal" },
   { id: "env", label: "Environment" },
   { id: "repo", label: "Repository" },
+  { id: "github", label: "GitHub" },
   { id: "integrations", label: "Integrations" },
   { id: "about", label: "About" },
 ];
@@ -114,6 +117,9 @@ export function SettingsPage({ onClose, selectedRepoId }: SettingsPageProps) {
 
         {/* Section content */}
         <div style={{ flex: 1, overflow: "auto", padding: "var(--space-4)" }}>
+          {activeSection === "agents" && (
+            <AgentSettings settings={settings} onChange={handleChange} />
+          )}
           {activeSection === "chat" && (
             <ChatSettings settings={settings} onChange={handleChange} />
           )}
@@ -130,6 +136,12 @@ export function SettingsPage({ onClose, selectedRepoId }: SettingsPageProps) {
             <p style={{ color: "var(--text-tertiary)", fontSize: "var(--font-size-sm)" }}>
               Select a repository to manage environment variables.
             </p>
+          )}
+          {activeSection === "terminal" && (
+            <TerminalSettings settings={settings} onChange={handleChange} />
+          )}
+          {activeSection === "github" && (
+            <GitHubSettings settings={settings} onChange={handleChange} />
           )}
           {activeSection === "integrations" && (
             <IntegrationSettings
@@ -245,6 +257,52 @@ function ToggleSetting({
   );
 }
 
+function AgentSettings({ settings, onChange }: SectionProps) {
+  return (
+    <div>
+      <h2 style={{ color: "var(--text-primary)", fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "var(--space-3)" }}>
+        Default Agent Settings
+      </h2>
+      <SettingRow label="Default Agent">
+        <SelectSetting
+          value={settings.default_agent ?? "claude"}
+          options={[
+            { label: "Claude Code", value: "claude" },
+            { label: "Codex", value: "codex" },
+          ]}
+          onChange={(v) => onChange("default_agent", v)}
+        />
+      </SettingRow>
+      <SettingRow label="Default Model">
+        <SelectSetting
+          value={settings.default_model ?? "claude-sonnet-4-6"}
+          options={[
+            { label: "Opus 4.6", value: "claude-opus-4-6" },
+            { label: "Sonnet 4.6", value: "claude-sonnet-4-6" },
+            { label: "Haiku 4.5", value: "claude-haiku-4-5-20251001" },
+            { label: "o4-mini", value: "o4-mini" },
+            { label: "o3", value: "o3" },
+            { label: "GPT-4.1", value: "gpt-4.1" },
+          ]}
+          onChange={(v) => onChange("default_model", v)}
+        />
+      </SettingRow>
+      <SettingRow label="Auto-approve Mode">
+        <ToggleSetting
+          value={settings.auto_approve === "true"}
+          onChange={(v) => onChange("auto_approve", String(v))}
+        />
+      </SettingRow>
+      <SettingRow label="Extended Thinking">
+        <ToggleSetting
+          value={settings.thinking_enabled === "true"}
+          onChange={(v) => onChange("thinking_enabled", String(v))}
+        />
+      </SettingRow>
+    </div>
+  );
+}
+
 function ChatSettings({ settings, onChange }: SectionProps) {
   return (
     <div>
@@ -325,6 +383,79 @@ function GitSettings({ settings, onChange }: SectionProps) {
             { label: "None", value: "none" },
           ]}
           onChange={(v) => onChange("branch_prefix_type", v)}
+        />
+      </SettingRow>
+    </div>
+  );
+}
+
+function TerminalSettings({ settings, onChange }: SectionProps) {
+  return (
+    <div>
+      <h2 style={{ color: "var(--text-primary)", fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "var(--space-3)" }}>
+        Terminal
+      </h2>
+      <SettingRow label="Font Size">
+        <SelectSetting
+          value={settings.terminal_font_size ?? "13"}
+          options={[
+            { label: "11px", value: "11" },
+            { label: "12px", value: "12" },
+            { label: "13px", value: "13" },
+            { label: "14px", value: "14" },
+            { label: "15px", value: "15" },
+            { label: "16px", value: "16" },
+          ]}
+          onChange={(v) => onChange("terminal_font_size", v)}
+        />
+      </SettingRow>
+      <SettingRow label="Scrollback Lines">
+        <SelectSetting
+          value={settings.terminal_scrollback ?? "5000"}
+          options={[
+            { label: "1000", value: "1000" },
+            { label: "5000", value: "5000" },
+            { label: "10000", value: "10000" },
+            { label: "50000", value: "50000" },
+          ]}
+          onChange={(v) => onChange("terminal_scrollback", v)}
+        />
+      </SettingRow>
+    </div>
+  );
+}
+
+function GitHubSettings({ settings, onChange }: SectionProps) {
+  return (
+    <div>
+      <h2 style={{ color: "var(--text-primary)", fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: "var(--space-3)" }}>
+        GitHub
+      </h2>
+      <div style={{
+        padding: "var(--space-3)",
+        background: "var(--bg-surface)",
+        borderRadius: "var(--radius-md)",
+        border: "1px solid var(--border)",
+        marginBottom: "var(--space-3)",
+      }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}>
+          GitHub CLI Status
+        </div>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-primary)" }}>
+          Using <code style={{ fontFamily: "var(--font-mono)" }}>gh</code> CLI for authentication.
+          Run <code style={{ fontFamily: "var(--font-mono)" }}>gh auth login</code> to authenticate.
+        </div>
+      </div>
+      <SettingRow label="Auto-create PR">
+        <ToggleSetting
+          value={settings.auto_create_pr === "true"}
+          onChange={(v) => onChange("auto_create_pr", String(v))}
+        />
+      </SettingRow>
+      <SettingRow label="Default PR Draft">
+        <ToggleSetting
+          value={settings.default_pr_draft === "true"}
+          onChange={(v) => onChange("default_pr_draft", String(v))}
         />
       </SettingRow>
     </div>

@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback } from "react";
+import { AgentLogo } from "../Agents/AgentLogo";
 
 interface ChatTab {
   id: string;
   title: string | null;
   unreadCount: number;
   isActive: boolean;
+  agentType?: string;
 }
 
 interface ChatTabsProps {
@@ -85,6 +87,9 @@ export function ChatTabs({
               transition: "color 150ms ease",
             }}
           >
+            {tab.agentType && (
+              <AgentLogo agentId={tab.agentType} size={14} />
+            )}
             {editingId === tab.id ? (
               <input
                 ref={inputRef}
